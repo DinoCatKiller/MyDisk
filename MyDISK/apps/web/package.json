@@ -1,0 +1,42 @@
+{
+  "name": "web",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite dev",
+    "build": "tsc -b ../../packages/api && vite build",
+    "check-types": "tsc -b ../../packages/api && tsc --noEmit",
+    "start": "node .output/server/index.mjs",
+    "preview": "vite preview",
+    "env:generate": "varlock codegen"
+  },
+  "dependencies": {
+    "@MyDISK/api": "workspace:*",
+    "@MyDISK/auth": "workspace:*",
+    "@orpc/client": "catalog:",
+    "@orpc/server": "catalog:",
+    "@orpc/tanstack-query": "^1.15.0",
+    "@solidjs/meta": "1.0.0-next.2",
+    "@solidjs/router": "2.0.0-next.23",
+    "@solidjs/web": "2.0.0-rc.7",
+    "@tanstack/query-core": "5.101.4",
+    "@tanstack/solid-query": "6.0.0-rc.3",
+    "@varlock/vite-integration": "1.5.1",
+    "solid-js": "2.0.0-rc.7",
+    "varlock": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@MyDISK/config": "workspace:*",
+    "@solidjs/vite-plugin": "3.0.0-next.39",
+    "@tailwindcss/vite": "^4.3.3",
+    "filesystem-routing": "0.3.0",
+    "nitro": "3.0.260903-beta",
+    "tailwindcss": "^4.3.3",
+    "typescript": "catalog:",
+    "vite": "^8.2.2"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

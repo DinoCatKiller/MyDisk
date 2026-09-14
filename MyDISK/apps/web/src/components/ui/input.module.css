@@ -1,0 +1,74 @@
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--md-space-2);
+}
+
+.label {
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--md-text-soft);
+}
+
+.hint {
+  font-size: 12px;
+  color: var(--md-text-muted);
+}
+
+.error {
+  font-size: 12px;
+  color: var(--md-danger);
+}
+
+.control {
+  display: flex;
+  align-items: center;
+  gap: var(--md-space-2);
+  height: 38px;
+  padding: 0 var(--md-space-3);
+  background: var(--md-surface);
+  border: 1px solid var(--md-border);
+  border-radius: var(--md-radius-sm);
+  transition:
+    border-color 0.16s ease,
+    box-shadow 0.16s ease;
+}
+
+.control:focus-within {
+  border-color: var(--md-brand);
+  box-shadow: var(--md-ring);
+}
+
+.controlInvalid {
+  border-color: var(--md-danger);
+}
+
+.controlInvalid:focus-within {
+  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.16);
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  color: var(--md-text);
+  font-family: inherit;
+  font-size: 13.5px;
+}
+
+.input::placeholder {
+  color: var(--md-text-muted);
+}
+
+.affix {
+  display: inline-flex;
+  align-items: center;
+  color: var(--md-text-muted);
+  cursor: pointer;
+}
+
+.affix:hover {
+  color: var(--md-text-soft);
+}

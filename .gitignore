@@ -1,0 +1,15 @@
+# 说明：MyDISK/ 内部另有一份 .gitignore 负责忽略 node_modules、dist、.env 等，
+# 此处仅补充仓库根级别的忽略项。
+
+# 编辑器与系统
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+
+# 临时文件
+*.tmp
+.pr-msg*.txt
+.prmsg.txt

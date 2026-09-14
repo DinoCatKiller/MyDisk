@@ -1,0 +1,29 @@
+{
+  "name": "@MyDISK/cli",
+  "version": "0.0.0",
+  "private": true,
+  "bin": {
+    "pstorage": "./src/index.ts"
+  },
+  "type": "module",
+  "scripts": {
+    "build": "tsc -b",
+    "check-types": "tsc -b",
+    "dev": "bun run src/index.ts"
+  },
+  "dependencies": {
+    "@MyDISK/auth": "workspace:*",
+    "@MyDISK/db": "workspace:*",
+    "@MyDISK/storage": "workspace:*",
+    "@clack/prompts": "^0.11.0",
+    "better-auth": "catalog:",
+    "drizzle-orm": "^0.45.2",
+    "yargs": "^17.7.2"
+  },
+  "devDependencies": {
+    "@MyDISK/config": "workspace:*",
+    "@types/bun": "catalog:",
+    "@types/yargs": "^17.0.33",
+    "typescript": "catalog:"
+  }
+}

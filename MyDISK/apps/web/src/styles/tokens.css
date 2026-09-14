@@ -1,0 +1,71 @@
+/* MyDisk 设计令牌：亮/暗双主题，供 CSS Modules 与 Tailwind 共同消费 */
+:root {
+  --md-bg: #f5f6f8;
+  --md-surface: #ffffff;
+  --md-surface-muted: #f8fafc;
+  --md-surface-hover: #f1f5f9;
+  --md-border: #e2e8f0;
+  --md-border-strong: #cbd5e1;
+
+  --md-text: #0f172a;
+  --md-text-soft: #475569;
+  --md-text-muted: #94a3b8;
+
+  --md-brand: #4f46e5;
+  --md-brand-hover: #4338ca;
+  --md-brand-soft: #eef2ff;
+  --md-brand-contrast: #ffffff;
+
+  --md-success: #059669;
+  --md-success-soft: #ecfdf5;
+  --md-warning: #d97706;
+  --md-warning-soft: #fffbeb;
+  --md-danger: #dc2626;
+  --md-danger-hover: #b91c1c;
+  --md-danger-soft: #fef2f2;
+
+  --md-radius-xs: 6px;
+  --md-radius-sm: 8px;
+  --md-radius: 12px;
+  --md-radius-lg: 16px;
+
+  --md-shadow-xs: 0 1px 2px rgba(15, 23, 42, 0.05);
+  --md-shadow-sm: 0 2px 8px rgba(15, 23, 42, 0.06);
+  --md-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+  --md-ring: 0 0 0 3px rgba(79, 70, 229, 0.18);
+
+  --md-space-1: 4px;
+  --md-space-2: 8px;
+  --md-space-3: 12px;
+  --md-space-4: 16px;
+  --md-space-5: 20px;
+  --md-space-6: 24px;
+  --md-space-8: 32px;
+
+  --md-sidebar-width: 248px;
+  --md-header-height: 60px;
+}
+
+[data-theme="dark"] {
+  --md-bg: #0b1020;
+  --md-surface: #131a2c;
+  --md-surface-muted: #182034;
+  --md-surface-hover: #1d2740;
+  --md-border: #26314b;
+  --md-border-strong: #334159;
+
+  --md-text: #e8ecf6;
+  --md-text-soft: #a9b4cb;
+  --md-text-muted: #74809b;
+
+  --md-brand: #6366f1;
+  --md-brand-hover: #7c7ff2;
+  --md-brand-soft: #1e2444;
+
+  --md-success-soft: #10291f;
+  --md-warning-soft: #2b2110;
+  --md-danger-soft: #2c1418;
+
+  --md-shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.32);
+  --md-shadow: 0 12px 34px rgba(0, 0, 0, 0.42);
+}
