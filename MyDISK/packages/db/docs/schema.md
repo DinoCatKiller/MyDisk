@@ -1,8 +1,21 @@
-# MyDisk 数据库模型设计
+# A2 · 数据模型（Drizzle schema）
 
-> 版本：v1.0（待评审）
-> ORM：Drizzle 0.45.2 · 数据库：PostgreSQL（库名 `pstorage`）
-> 连接串：`postgres://postgres:123456@127.0.0.1:5432/pstorage`
+|        |                                                         |
+| ------ | ------------------------------------------------------- |
+| ID     | `A2`                                                    |
+| 类型   | 规格（契约）                                            |
+| 状态   | 稳定（P0 已落地 schema 文件；迁移待首次 `db:generate`） |
+| 更新   | 2026-10-15                                              |
+| 何时读 | 改表、加字段、写查询前                                  |
+| 规模   | ~5k token                                               |
+
+## TL;DR
+
+- PostgreSQL 库名 `pstorage`，ORM 为 Drizzle 0.45.2；连接串默认 `postgres://postgres:123456@127.0.0.1:5432/pstorage`。
+- 共 **19 张表**：Better-Auth 原生 4 张（`user`/`session`/`account`/`verification`）+ 业务 15 张。
+- 约定（§0）：业务主键 `uuid`、时间 `timestamptz`、软删 `deleted_at`、加密字段 `*_enc`、JSON 用 `jsonb`。
+- 关键唯一约束：`founder` 全局唯一、默认连接全局唯一、本地连接全库唯一、同目录同名唯一、`upload_session` 按 `(user_id, fingerprint)` 唯一。
+- schema 文件按域拆分于 `packages/db/src/schema/`，`index.ts` 统一导出（§15）。
 
 ---
 

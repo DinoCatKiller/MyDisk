@@ -52,7 +52,8 @@ coverage
 .nyc_output
 
 # MyDisk 运行期产物
-storage/
+# 注意：必须锚定到项目根，否则会误伤 packages/storage 整个包
+/storage/
 openapi.json
 
 # Misc

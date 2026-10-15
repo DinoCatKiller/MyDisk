@@ -1,8 +1,21 @@
-# MyDisk oRPC 接口清单
+# A3 · oRPC 接口契约
 
-> 版本：v1.0（待评审）
-> 框架：oRPC 1.15 + Zod 4 · 传输：`/rpc`（RPCHandler）· 文档：`/api-reference`（OpenAPI）
-> 二进制面见 §7「原生 HTTP 路由」（不走 oRPC）
+|        |                                                  |
+| ------ | ------------------------------------------------ |
+| ID     | `A3`                                             |
+| 类型   | 规格（契约）                                     |
+| 状态   | 稳定（P1 已落地 §2 / §3；其余为 P2+ 待实现契约） |
+| 更新   | 2026-10-15                                       |
+| 何时读 | 加 / 改接口、对齐前端调用、调整权限中间件时      |
+| 规模   | ~4k token                                        |
+
+## TL;DR
+
+- 所有 oRPC 过程带 `.route()`，同一份实现同时具备 **RPC（`/rpc`）与 REST（OpenAPI 3.1）** 两种语义（`D5`）。
+- 权限四档：`publicProcedure` / `protectedProcedure`（任意管理员）/ `founderProcedure`（仅创始人）/ `shareProcedure`（凭 `shareToken` + 密码）。
+- 统一错误码枚举（§1.2）、统一分页返回 `{ items, total, page, pageSize }`（§1.3）。
+- **二进制面不走 oRPC**（`D3`）：分片上传 / 取流见 §7，其 OpenAPI 覆盖靠 `apps/server/src/openapi.ts` 手写 spec 合并（§11.4）。
+- 本文件是接口清单**唯一事实源**；实现的 router 见 `packages/api/src/routers/`。
 
 ---
 
@@ -162,7 +175,7 @@ const sort = z.object({
 | `/api/raw/:nodeId`                | GET/HEAD    | 签名 token（`?token=`）             | 支持 `Range` → 206；`dl=1` 触发下载文件名；预览用 `inline=1`              |
 | `/api/raw/share/:shareId/:nodeId` | GET         | 分享签名                            | 分享场景取流                                                              |
 | `/api-reference`                  | GET         | —                                   | oRPC 交互式文档（Scalar 主题）                                            |
-| `/dav/*`                          | WebDAV 方法 | Basic Auth（管理员或 webdav_token） | 见 DESIGN §6.8                                                            |
+| `/dav/*`                          | WebDAV 方法 | Basic Auth（管理员或 webdav_token） | 见 `A6` §8                                                                |
 
 > 签名 token：JWT，15 分钟有效，payload 含 `nodeId` / `userId` 或 `shareId`，服务端每次校验资源归属。
 
