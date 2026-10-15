@@ -1,13 +1,13 @@
 # A3 · oRPC 接口契约
 
-|        |                                                  |
-| ------ | ------------------------------------------------ |
-| ID     | `A3`                                             |
-| 类型   | 规格（契约）                                     |
-| 状态   | 稳定（P1 已落地 §2 / §3；其余为 P2+ 待实现契约） |
-| 更新   | 2026-10-15                                       |
-| 何时读 | 加 / 改接口、对齐前端调用、调整权限中间件时      |
-| 规模   | ~4k token                                        |
+|        |                                                                                                     |
+| ------ | --------------------------------------------------------------------------------------------------- |
+| ID     | `A3`                                                                                                |
+| 类型   | 规格（契约）                                                                                        |
+| 状态   | 稳定（P1 落地 §2/§3；P2 落地 §4/§5/§6/§7/§10 的**子集**，各节「P2 实现状态」为准；其余为 P3+ 契约） |
+| 更新   | 2026-10-15                                                                                          |
+| 何时读 | 加 / 改接口、对齐前端调用、调整权限中间件时                                                         |
+| 规模   | ~4k token                                                                                           |
 
 ## TL;DR
 
@@ -122,6 +122,8 @@ const sort = z.object({
 | `syncPause` / `syncResume` / `syncCancel` | founder   | `{ taskId }`                                                       | `{ ok }`                      |                                                       |
 | `usage`                                   | protected | `{ id }`                                                           | `{ totalSize, fileCount }`    |                                                       |
 
+> **P2 实现状态**（`packages/api/src/routers/connection.ts`）：仅落地 `list` / `get`，输出统一经 `toPublicConnection` 脱敏（剔除 `config_enc` 密文，绝不含密钥原文）。其余 CRUD / `test` / `setDefault` / `sync*` / `usage` 属 P3。
+
 ---
 
 ## 5. `fileRouter`（文件与文件夹）
@@ -148,6 +150,12 @@ const sort = z.object({
 | `tag.add` / `tag.remove` / `tag.list` | protected | `{ nodeId, tagId }`                                                                                     | —                            |                                            |
 | `batchDownload`                       | protected | `{ nodeIds[] }`                                                                                         | `{ taskId }`                 | 打包为 zip（队列）                         |
 
+> **P2 实现状态**（`packages/api/src/routers/file.ts`）：已落地 `list` / `tree` / `path` / `get` / `mkdir` / `rename` / `move` / `remove` / `listTrash` / `restore` / `purge` / `emptyTrash` / `stats`。
+>
+> - 未落地：`copy` / `favorite`(`unfavorite` / `listFavorites`) / `search` / `tag.*` / `batchDownload`（属 P3+；`list` 已支持 `keyword` 名称模糊过滤）。
+> - `move` / `copy` 本期**仅同连接**：跨连接抛 `NOT_IMPLEMENTED`；`move` 会校验目标为同连接目录且禁止移入自身子孙。
+> - `purge` / `emptyTrash` 直接物理删除（不经队列）；秒传产生的共享 `storage_key` 仅在最后一个引用被清除时才删存储对象。
+
 ---
 
 ## 6. `uploadRouter`（上传控制面）
@@ -165,6 +173,14 @@ const sort = z.object({
 | `listPending`      | protected | —                                                                                                          | `UploadSession[]`                                                                                         | **刷新恢复队列**                                         |
 | `cleanupExpired`   | protected | —                                                                                                          | `{ cleaned: number }`                                                                                     | 手动触发 GC                                              |
 
+> **P2 实现状态**（`packages/api/src/routers/upload.ts`）：已落地 `init` / `complete` / `abort` / `pause` / `resume` / `chunkMeta` / `listPending` / `cleanupExpired`。
+>
+> - `init` 返回**判别联合**：秒传命中 → `{ instant: true, fileNode }`；否则 → `{ instant: false, uploadId, chunkSize, totalChunks, uploadedParts, providerUploadId, storageKey }`。
+> - `complete` 输入仅 `{ uploadId }`：以驱动 `listParts` 为权威真相（DB `uploadedParts` 仅作前端续传提示），合并后写入 `file_node`。
+> - **`simple` 未单独实现**：小文件走同一分片路径（`ceil(size/chunkSize)` 为 1 即单分片），故本期不需要独立的小文件接口。
+> - `chunkMeta` 仅查 DB 已记录分片号；`init` 幂等（同 fingerprint 复用会话），因此「继续 = 重新 `init` 对账」。
+> - 文件夹上传：`init` 按 `relativePath` 逐级 `ensureFolderPath` 补齐中间目录，落点为末级目录。
+
 ---
 
 ## 7. 原生 HTTP 路由（非 oRPC，二进制面）
@@ -177,7 +193,13 @@ const sort = z.object({
 | `/api-reference`                  | GET         | —                                   | oRPC 交互式文档（Scalar 主题）                                            |
 | `/dav/*`                          | WebDAV 方法 | Basic Auth（管理员或 webdav_token） | 见 `A6` §8                                                                |
 
-> 签名 token：JWT，15 分钟有效，payload 含 `nodeId` / `userId` 或 `shareId`，服务端每次校验资源归属。
+> 签名 token（`packages/api/src/lib/raw-token.ts`）：`HMAC-SHA256` 签名的 `base64url(payload).base64url(sig)`，TTL 900 秒，
+> payload 含 `{ nodeId, userId, exp }`；服务端每次校验签名、过期与 `nodeId` 归属（防止令牌被挪用）。
+> 前端经 `preview.url` 取签名地址；跨域 `<img>/<video>` 无法带 Cookie，故必须用签名 URL 而非会话 Cookie。
+>
+> **P2 实现状态**：`/api/upload/chunk`（`apps/server/src/routes/upload-chunk.ts`，session Cookie 鉴权 + 驱动 `multipart.uploadPart`）
+> 与 `/api/raw/:nodeId`（`apps/server/src/routes/raw.ts`，签名 token 或 Cookie 双鉴权，Range → 206/416）已落地；
+> `/api/raw/share/*` 与 `/dav/*` 属 P3/P4。
 
 ---
 
@@ -232,6 +254,9 @@ const sort = z.object({
 | `office` | protected | `{ nodeId }`                  | `{ html }`                                          | docx/xlsx 服务端转 HTML，结果缓存    |
 
 缩略图：上传完成后入队 `thumbnail` 任务，写入 `meta.thumbKey`，列表读取签名 URL。
+
+> **P2 实现状态**（`packages/api/src/routers/preview.ts`）：仅落地 `url`（输入 `{ nodeId, inline?, download? }` → `{ url, ttl: 900 }`）。
+> `info` / `text` / `office` 与缩略图队列属 P3。
 
 ---
 

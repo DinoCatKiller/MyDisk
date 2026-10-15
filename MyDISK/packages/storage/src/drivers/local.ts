@@ -227,7 +227,8 @@ export class LocalStorageDriver implements StorageDriver {
     }
     const info = await stat(target);
     await rm(dir, { recursive: true, force: true });
-    return { key, size: info.size, etag: hash.digest("hex").slice(0, 16) };
+    // 合并结果返回完整 sha256（64 hex），供 file_node.checksum 与秒传判定使用
+    return { key, size: info.size, etag: hash.digest("hex") };
   }
 
   private async multipartAbort(key: string, uploadId: string): Promise<void> {

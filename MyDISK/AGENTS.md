@@ -76,21 +76,22 @@
 
 ### 决策记录（只增不改）
 
-| ID  | 标题                                                           | 路径                                                                                                     | 何时读                       | 规模  | 状态 |
-| --- | -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- | ---------------------------- | ----- | ---- |
-| D0  | ADR 模板                                                       | [`docs/decisions/_template.md`](docs/decisions/_template.md)                                             | 写新 ADR                     | ~0.2k | ✅   |
-| D1  | 技术栈定稿（Bun / Hono / oRPC / PostgreSQL / Redis / Drizzle） | [`docs/decisions/0001-tech-stack.md`](docs/decisions/0001-tech-stack.md)                                 | 想质疑或更换技术栈时         | ~0.7k | ✅   |
-| D2  | 前端 SolidJS 2 + Tailwind v4 自研组件（弃 HeroUI）             | [`docs/decisions/0002-frontend-solidjs-custom-ui.md`](docs/decisions/0002-frontend-solidjs-custom-ui.md) | 想换前端框架 / UI 库时       | ~0.6k | ✅   |
-| D3  | 双协议面分离：oRPC 控制面 + 原生 HTTP 数据面                   | [`docs/decisions/0003-dual-protocol-split.md`](docs/decisions/0003-dual-protocol-split.md)               | 改动上传 / 下载 / 取流接口时 | ~0.6k | ✅   |
-| D4  | 单管理员体系与 founder 唯一（禁公开注册）                      | [`docs/decisions/0004-single-admin-founder.md`](docs/decisions/0004-single-admin-founder.md)             | 改认证 / 管理员 / 注册流程时 | ~0.6k | ✅   |
-| D5  | 输出 OpenAPI 3.1 而非引入 AI 能力                              | [`docs/decisions/0005-openapi-not-ai.md`](docs/decisions/0005-openapi-not-ai.md)                         | 想加"AI 接口"或改接口文档时  | ~0.5k | ✅   |
-| D6  | 文档跟代码走（本体系）                                         | [`docs/decisions/0006-docs-follow-code.md`](docs/decisions/0006-docs-follow-code.md)                     | 想改文档组织方式时           | ~0.6k | ✅   |
+| ID  | 标题                                                           | 路径                                                                                                       | 何时读                         | 规模  | 状态 |
+| --- | -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- | ------------------------------ | ----- | ---- |
+| D0  | ADR 模板                                                       | [`docs/decisions/_template.md`](docs/decisions/_template.md)                                               | 写新 ADR                       | ~0.2k | ✅   |
+| D1  | 技术栈定稿（Bun / Hono / oRPC / PostgreSQL / Redis / Drizzle） | [`docs/decisions/0001-tech-stack.md`](docs/decisions/0001-tech-stack.md)                                   | 想质疑或更换技术栈时           | ~0.7k | ✅   |
+| D2  | 前端 SolidJS 2 + Tailwind v4 自研组件（弃 HeroUI）             | [`docs/decisions/0002-frontend-solidjs-custom-ui.md`](docs/decisions/0002-frontend-solidjs-custom-ui.md)   | 想换前端框架 / UI 库时         | ~0.6k | ✅   |
+| D3  | 双协议面分离：oRPC 控制面 + 原生 HTTP 数据面                   | [`docs/decisions/0003-dual-protocol-split.md`](docs/decisions/0003-dual-protocol-split.md)                 | 改动上传 / 下载 / 取流接口时   | ~0.6k | ✅   |
+| D4  | 单管理员体系与 founder 唯一（禁公开注册）                      | [`docs/decisions/0004-single-admin-founder.md`](docs/decisions/0004-single-admin-founder.md)               | 改认证 / 管理员 / 注册流程时   | ~0.6k | ✅   |
+| D5  | 输出 OpenAPI 3.1 而非引入 AI 能力                              | [`docs/decisions/0005-openapi-not-ai.md`](docs/decisions/0005-openapi-not-ai.md)                           | 想加"AI 接口"或改接口文档时    | ~0.5k | ✅   |
+| D6  | 文档跟代码走（本体系）                                         | [`docs/decisions/0006-docs-follow-code.md`](docs/decisions/0006-docs-follow-code.md)                       | 想改文档组织方式时             | ~0.6k | ✅   |
+| D7  | 上传编排采用 xstate 核心 + 模块级 actor 池                     | [`docs/decisions/0007-xstate-upload-orchestration.md`](docs/decisions/0007-xstate-upload-orchestration.md) | 想质疑或推翻上传前端编排方式时 | ~0.6k | ✅   |
 
 ### 计划与调研
 
-| ID  | 标题                                                     | 路径                              | 何时读                  | 规模 | 状态 |
-| --- | -------------------------------------------------------- | --------------------------------- | ----------------------- | ---- | ---- |
-| X1  | 浏览器刷新续传方案调研（File System Access / IndexedDB） | `docs/research/refresh-resume.md` | P2 实现「刷新后续传」前 | —    | ⬜   |
+| ID  | 标题                                                      | 路径                                                                         | 何时读                          | 规模  | 状态 |
+| --- | --------------------------------------------------------- | ---------------------------------------------------------------------------- | ------------------------------- | ----- | ---- |
+| X1  | P2 上传前端方案调研（状态机绑定 · 刷新续传载体 · 状态图） | [`docs/research/p2-upload-frontend.md`](docs/research/p2-upload-frontend.md) | P2 实现上传与文件管理（前端）前 | ~0.9k | ✅   |
 
 ## 3. 任务路由（按需读）
 

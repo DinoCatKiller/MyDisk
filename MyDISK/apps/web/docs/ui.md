@@ -19,23 +19,23 @@
 
 ## 1. 页面（路由）
 
-| 路由                     | 内容                                                          | 现状    |
-| ------------------------ | ------------------------------------------------------------- | ------- |
-| `/login`                 | 自研登录（邮箱+密码；忘记密码入口）                           | ✅ P1   |
-| `/forgot-password`       | 输入邮箱 → 队列发重置邮件                                     | ⬜ P4   |
-| `/reset-password?token=` | 设置新密码                                                    | ⬜ P4   |
-| `/files/[...path]`       | 主界面：左侧连接+目录树，右侧文件区，顶部工具栏，底部上传抽屉 | 🚧 骨架 |
-| `/trash`                 | 回收站（还原 / 彻底删除 / 清空）                              | 🚧 骨架 |
-| `/favorites`             | 收藏                                                          | 🚧 骨架 |
-| `/shares`                | 分享管理                                                      | 🚧 骨架 |
-| `/settings/storage`      | 连接列表、新增/编辑/测试/设为默认/同步                        | 🚧 骨架 |
-| `/settings/smtp`         | SMTP 配置与测试                                               | ⬜ P4   |
-| `/settings/api`          | OpenAPI 文档入口、spec 下载、外部集成说明                     | ⬜ P4   |
-| `/settings/webdav`       | 开关 + 令牌管理                                               | ⬜ P4   |
-| `/settings/security`     | 改密、绑定邮箱、会话管理                                      | 🚧 骨架 |
-| `/admin/users`           | 管理员列表/新增/删除（founder 专属）                          | 🚧 骨架 |
-| `/share/[token]`         | 公开分享页（密码门禁 → 目录/预览/下载）                       | ⬜ P3   |
-| `/[...404]`              | 404                                                           | ✅ P1   |
+| 路由                     | 内容                                                          | 现状                                               |
+| ------------------------ | ------------------------------------------------------------- | -------------------------------------------------- |
+| `/login`                 | 自研登录（邮箱+密码；忘记密码入口）                           | ✅ P1                                              |
+| `/forgot-password`       | 输入邮箱 → 队列发重置邮件                                     | ⬜ P4                                              |
+| `/reset-password?token=` | 设置新密码                                                    | ⬜ P4                                              |
+| `/files/[...path]`       | 主界面：左侧连接+目录树，右侧文件区，顶部工具栏，底部上传抽屉 | ✅ P2（path 段为节点 id，见 `apps/web/README.md`） |
+| `/trash`                 | 回收站（还原 / 彻底删除 / 清空）                              | 🚧 骨架                                            |
+| `/favorites`             | 收藏                                                          | 🚧 骨架                                            |
+| `/shares`                | 分享管理                                                      | 🚧 骨架                                            |
+| `/settings/storage`      | 连接列表、新增/编辑/测试/设为默认/同步                        | 🚧 骨架                                            |
+| `/settings/smtp`         | SMTP 配置与测试                                               | ⬜ P4                                              |
+| `/settings/api`          | OpenAPI 文档入口、spec 下载、外部集成说明                     | ⬜ P4                                              |
+| `/settings/webdav`       | 开关 + 令牌管理                                               | ⬜ P4                                              |
+| `/settings/security`     | 改密、绑定邮箱、会话管理                                      | 🚧 骨架                                            |
+| `/admin/users`           | 管理员列表/新增/删除（founder 专属）                          | 🚧 骨架                                            |
+| `/share/[token]`         | 公开分享页（密码门禁 → 目录/预览/下载）                       | ⬜ P3                                              |
+| `/[...404]`              | 404                                                           | ✅ P1                                              |
 
 ## 2. 关键组件
 
@@ -46,6 +46,7 @@
 - `layout/`：`AppShell` / `Header` / `Sidebar` / `Protected`（登录门禁）。
 
 > 现状：`ui/` 已落 `button`/`input`/`card`/`alert`/`icons`；`layout/` 已落 `app-shell`/`protected`/`placeholder`。
+> P2 已落 `file/`（`toolbar`/`breadcrumb`/`file-list`/`file-row`/`drop-zone`）与 `upload/`（`upload-drawer`）。`preview/` 与 `FileGrid` 网格留待后续。
 
 ## 3. 上传队列状态机
 
@@ -58,6 +59,8 @@ pending ─▶ uploading ─▶ paused ─▶ uploading ─▶ completed
 ```
 
 悬停交互：鼠标移到单条记录上出现「暂停 / 停止」两个按钮；点暂停 → 变「继续」，暂停传输；点继续 → 变「暂停」，继续；点停止 → 终止并移除该条。（状态机细节与刷新续传三级方案见 `A6` §2。）
+
+> **实现（`D7` / `X1` §3）**：上图由 `xstate` v5 落地——`apps/web/src/lib/upload/item.machine.ts`（每文件机）+ `pool.machine.ts`（池编排器，`maxParallelFiles=3`），二者挂**模块级**单例（`store.ts`），刷新不丢队列；刷新续传载体为 **C 级（仅元数据 + 重选续传）**（`S2` #3）。
 
 ## 4. 视觉与样式规范
 

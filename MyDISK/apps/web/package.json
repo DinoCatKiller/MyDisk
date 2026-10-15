@@ -24,6 +24,7 @@
     "@varlock/vite-integration": "1.5.1",
     "solid-js": "2.0.0-rc.7",
     "varlock": "catalog:",
+    "xstate": "^5.20.0",
     "zod": "catalog:"
   },
   "devDependencies": {

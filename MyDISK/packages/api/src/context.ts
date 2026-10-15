@@ -14,6 +14,10 @@ export type Context = {
   session: Awaited<ReturnType<Auth["api"]["getSession"]>>;
   headers: Headers;
   responseHeaders: Headers;
+  /** 本地存储根目录（绝对路径），由 server 注入，供创建本地驱动使用 */
+  storageRoot: string;
+  /** 二进制面短时令牌签名密钥，由 server 注入 */
+  signingSecret: string;
   requestInfo: {
     ip: string | null;
     userAgent: string | null;

@@ -1,0 +1,128 @@
+.bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--md-space-4);
+  padding: var(--md-space-3) var(--md-space-4);
+  background: var(--md-surface);
+  border: 1px solid var(--md-border);
+  border-radius: var(--md-radius);
+}
+
+.controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--md-space-2);
+}
+
+.search {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 32px;
+  padding: 0 var(--md-space-3);
+  color: var(--md-text-muted);
+  background: var(--md-surface-muted);
+  border: 1px solid var(--md-border);
+  border-radius: var(--md-radius-sm);
+}
+
+.search:focus-within {
+  border-color: var(--md-brand);
+  box-shadow: var(--md-ring);
+}
+
+.searchInput {
+  width: 150px;
+  font: inherit;
+  font-size: 13px;
+  color: var(--md-text);
+  background: transparent;
+  border: none;
+  outline: none;
+}
+
+.sort {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.select {
+  height: 32px;
+  padding: 0 var(--md-space-2);
+  font: inherit;
+  font-size: 13px;
+  color: var(--md-text);
+  background: var(--md-surface-muted);
+  border: 1px solid var(--md-border);
+  border-radius: var(--md-radius-sm);
+  cursor: pointer;
+}
+
+.toggleGroup {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  background: var(--md-surface-muted);
+  border: 1px solid var(--md-border);
+  border-radius: var(--md-radius-sm);
+}
+
+.toggle {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 26px;
+  padding: 0;
+  color: var(--md-text-soft);
+  cursor: pointer;
+  background: transparent;
+  border: none;
+  border-radius: var(--md-radius-xs);
+}
+
+.toggle:hover {
+  color: var(--md-text);
+}
+
+.toggleActive {
+  color: var(--md-brand);
+  background: var(--md-surface);
+  box-shadow: var(--md-shadow-xs);
+}
+
+.iconButton {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  color: var(--md-text-soft);
+  cursor: pointer;
+  background: var(--md-surface-muted);
+  border: 1px solid var(--md-border);
+  border-radius: var(--md-radius-sm);
+}
+
+.iconButton:hover {
+  color: var(--md-text);
+  border-color: var(--md-border-strong);
+}
+
+.arrowUp {
+  transform: rotate(180deg);
+}
+
+.hidden {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  .searchInput {
+    width: 110px;
+  }
+}

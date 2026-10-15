@@ -13,6 +13,8 @@ import { serverConfig } from "./config";
 import { createContext } from "./context";
 import { env } from "./env.server";
 import { generateOpenApiDocument } from "./openapi";
+import { rawRoute } from "./routes/raw";
+import { uploadChunkRoute } from "./routes/upload-chunk";
 
 const app = new Hono();
 
@@ -27,6 +29,13 @@ app.use(
     exposeHeaders: ["Content-Disposition", "Content-Length", "Content-Range"],
   }),
 );
+
+/**
+ * 二进制面（`D3`）：分片上传与取流走 Hono 原生路由，不经 oRPC。
+ * 注册在 oRPC 中间件之前，命中后直接返回。
+ */
+app.route("/", uploadChunkRoute);
+app.route("/", rawRoute);
 
 /**
  * 注意：/api/auth/* 不再对外暴露。

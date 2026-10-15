@@ -211,3 +211,165 @@ export function LockIcon(props: IconProps) {
     </Svg>
   );
 }
+
+export function UploadIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <path d="m17 8-5-5-5 5" />
+      <path d="M12 3v12" />
+    </Svg>
+  );
+}
+
+export function UploadCloudIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M12 13v8" />
+      <path d="m8 17 4-4 4 4" />
+      <path d="M20.88 18.09A5 5 0 0 0 18 9h-1.26A8 8 0 1 0 3 16.29" />
+    </Svg>
+  );
+}
+
+export function FolderIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z" />
+    </Svg>
+  );
+}
+
+export function FileIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
+      <path d="M14 2v4a2 2 0 0 0 2 2h4" />
+    </Svg>
+  );
+}
+
+export function FileImageIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z" />
+      <path d="M14 2v4a2 2 0 0 0 2 2h4" />
+      <circle cx="9" cy="13" r="2" />
+      <path d="m20 17-1.7-1.7a2 2 0 0 0-2.8 0L9 22" />
+    </Svg>
+  );
+}
+
+export function PauseIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="6" y="4" width="4" height="16" rx="1" />
+      <rect x="14" y="4" width="4" height="16" rx="1" />
+    </Svg>
+  );
+}
+
+export function PlayIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M6 4v16l14-8Z" />
+    </Svg>
+  );
+}
+
+export function XIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M18 6 6 18" />
+      <path d="m6 6 12 12" />
+    </Svg>
+  );
+}
+
+export function MoreHorizontalIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <circle cx="12" cy="12" r="1" />
+      <circle cx="19" cy="12" r="1" />
+      <circle cx="5" cy="12" r="1" />
+    </Svg>
+  );
+}
+
+export function ChevronRightIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="m9 6 6 6-6 6" />
+    </Svg>
+  );
+}
+
+export function GridIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <rect x="3" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="3" width="7" height="7" rx="1" />
+      <rect x="14" y="14" width="7" height="7" rx="1" />
+      <rect x="3" y="14" width="7" height="7" rx="1" />
+    </Svg>
+  );
+}
+
+export function ListIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M8 6h13" />
+      <path d="M8 12h13" />
+      <path d="M8 18h13" />
+      <path d="M3 6h.01" />
+      <path d="M3 12h.01" />
+      <path d="M3 18h.01" />
+    </Svg>
+  );
+}
+
+export function PlusIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M5 12h14" />
+      <path d="M12 5v14" />
+    </Svg>
+  );
+}
+
+export function SearchIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <circle cx="11" cy="11" r="7" />
+      <path d="m21 21-4.3-4.3" />
+    </Svg>
+  );
+}
+
+export function DownloadIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <path d="m7 10 5 5 5-5" />
+      <path d="M12 15V3" />
+    </Svg>
+  );
+}
+
+export function PencilIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497Z" />
+      <path d="m15 5 4 4" />
+    </Svg>
+  );
+}
+
+export function RotateIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="M3 12a9 9 0 1 0 9-9 9 9 0 0 0-6.7 3" />
+      <path d="M3 3v6h6" />
+    </Svg>
+  );
+}

@@ -33,8 +33,8 @@ interface StorageDriver {
   // 分片（可选能力）
   multipart?: {
     init(key: string, mime: string): Promise<string>; // 返回 uploadId
-    uploadPart(key: string, uploadId: string, part: number, body): Promise<{ etag: string }>;
-    complete(key: string, uploadId: string, parts): Promise<void>;
+    uploadPart(key: string, uploadId: string, part: number, body): Promise<{ etag?: string }>;
+    complete(key: string, uploadId: string, parts: MultipartPart[]): Promise<PutResult>;
     abort(key: string, uploadId: string): Promise<void>;
     listParts(key: string, uploadId: string): Promise<number[]>;
   };
@@ -45,6 +45,7 @@ interface StorageDriver {
 ```
 
 > 实现现状：`packages/storage/src/types.ts` 定义了等价接口（含 `supportsMultipart`、`readAll`）；`createStorageDriver()` 为工厂入口。
+> 本地驱动的 `multipart.complete` 返回 `{ key, size, etag }`，其中 **`etag` 是完整 64 位 sha256**（顺序合并后计算），被 `upload.complete` 写入 `file_node.checksum` 并用于秒传判定——因此不能截断。
 
 **能力协商**：本地驱动自己实现「临时目录 + 合并」版 multipart；COS/OSS/S3 直接用原生 multipart。无 `signDownloadUrl` 能力时，一律走服务端 `/api/raw/*` 代理流（本地驱动即如此）。
 
