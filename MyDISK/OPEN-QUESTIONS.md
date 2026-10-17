@@ -4,7 +4,7 @@
 | ------ | -------------------------------------------------- |
 | ID     | `S2`                                               |
 | 类型   | 状态                                               |
-| 更新   | 2026-10-17                                         |
+| 更新   | 2026-10-17（`GUI` S0 结论回填，`#4`/`#5` 闭环）    |
 | 何时读 | 需要拍板时；**别处想写「待定」时，改成引用本文件** |
 | 规模   | ~1k token                                          |
 
@@ -23,10 +23,10 @@
 | 1   | 文档体系根目录放在 `MyDISK/`（项目根）还是 git 仓库根 `i:\MyDisk`                                                                          | agent 能否在仓库根直接读到 `AGENTS.md` §2 地图                     | 暂放 `MyDISK/`，与代码同级；`i:\MyDisk/README.md` 只做指路                                                                                                                                |
 | 2   | `apps/worker` 是否独立进程，还是并入 `apps/server` 起 worker                                                                               | P3 部署形态与队列消费方式                                          | 维持 `A1` 现状：独立进程                                                                                                                                                                  |
 | 3   | 上传刷新续传是否实现 **B 级（IDB 存 Blob 副本）**                                                                                          | 是否为「A 不可用（Firefox / Safari）时的小文件自动续传」写额外代码 | 本期仅 **C 级**：工具栏用 `<input type=file>` 拿不到 FSA handle（A 未启用），B 亦未落盘；非 FSA 浏览器走 C（重选续传），A/B 级接口（IDB `handles`/`blobs` store）已备好未启用；见 `X1` §2 |
-| 4   | TanStack Start Solid v2 的 server route 是否支持通配方法键（`ANY`），还是必须逐方法映射                                                    | `GUI` S0 验证点 3；影响 `routes/api/$.ts` 的写法                   | 先按逐方法映射（`GET/POST/PUT/PATCH/DELETE/HEAD/OPTIONS` 统一委托 Hono），支撑 `ANY` 则改回                                                                                               |
-| 5   | `@tanstack/solid-start@2.0.0-rc.8` 的 peer `@rsbuild/core ^2.0.0` 是必装还是可选                                                           | `GUI` S0 验证点 5；影响构建链是否被迫改动                          | 先按「只走 Vite 线」尝试；装不上才并入                                                                                                                                                    |
 | 6   | `@tanstack/solid-router-ssr-query` 无 rc 线（Solid 2 线仅 `2.0.0-beta.12`），与 `@tanstack/solid-query@6.0.0-rc.3` / `query-core` 如何配对 | `GUI` 阶段一是否引入它做 loader ↔ query 缓存桥接                   | **阶段一不引入**：`loader` 手动预填 `queryClient`，跑通后再评估                                                                                                                           |
 | 7   | `apps/web` 在合并后已含服务端装配，目录名与职责不符                                                                                        | 纯命名；影响 `A1` §2.1 目录图与各文档路径引用                      | 迁移完成后单独处理改名，**不阻塞** `GUI`                                                                                                                                                  |
+
+> `#4`（server route 是否支持 `ANY` 通配方法键）与 `#5`（`@rsbuild/core` 是必装还是可选）已由 `GUI` §7 的 S0 实测**闭环**，从本表移除 —— 结论见该处 S0 结论表。
 
 ## 已闭环（**上限 5 条**，更早的靠 git 查；不在这里堆积）
 

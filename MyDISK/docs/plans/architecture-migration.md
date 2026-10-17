@@ -4,7 +4,7 @@
 | ------ | ------------------------------------------------------------ |
 | ID     | `GUI`                                                        |
 | 类型   | 计划（执行前的改动面与验证门槛）                             |
-| 状态   | 进行中（`D8` 已批准；当前 **S0** 旁路 spike）                |
+| 状态   | 进行中（`D8` 已批准；S0 旁路 spike **已通过**，当前 **S1**） |
 | 更新   | 2026-10-17                                                   |
 | 何时读 | 执行本迁移前；想知道「改哪些文件、按什么顺序、什么算通过」时 |
 | 规模   | ~2.5k token                                                  |
@@ -132,19 +132,21 @@ Hono 内部路径同步重排（去掉已在 `route("/api", …)` 前缀里重�
 
 **依赖增删（`apps/web/package.json`）**
 
-| 包                                     | 版本         | 动作                            |
-| -------------------------------------- | ------------ | ------------------------------- |
-| `@tanstack/solid-router`               | `2.0.0-rc.8` | ➕ 新增                         |
-| `@tanstack/solid-start`                | `2.0.0-rc.8` | ➕ 新增（含 `.../plugin/vite`） |
-| `@tanstack/solid-router-ssr-query`     | 见 `S2`      | ⏸ 阶段一**不引入**              |
-| `@solidjs/router` `filesystem-routing` | —            | ➖ 删除                         |
-| `@solidjs/vite-plugin` `nitro`         | —            | ➖ 删除                         |
-| `@tanstack/solid-query` / `query-core` | 现有         | 保留（配对问题见 `S2`）         |
-| `@orpc/*` `varlock` `tailwindcss`      | 现有         | 保留                            |
+| 包                                     | 版本            | 动作                                                                                                                                                                                     |
+| -------------------------------------- | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@tanstack/solid-router`               | `2.0.0-rc.8`    | ➕ 新增                                                                                                                                                                                  |
+| `@tanstack/solid-start`                | `2.0.0-rc.8`    | ➕ 新增（含 `.../plugin/vite`）                                                                                                                                                          |
+| `solid-js` / `@solidjs/web`            | `2.0.0-rc.15`   | 🔁 抬版本（rc.7 → rc.15）：router 要求 `@solidjs/web ^2.0.0-rc.8`（内嵌 rc.15），不抬会出现双份渲染器；`overrides` 里 `@solidjs/compiler` / `@solidjs/signals` 同步抬（见 §7 S0 结论 1） |
+| `@solidjs/vite-plugin`                 | `3.0.0-next.39` | ✅ **保留**（Start 不自带 Solid JSX 编译，实测必需；仅去掉 `start` 选项）                                                                                                                |
+| `@tanstack/solid-router-ssr-query`     | 见 `S2`         | ⏸ 阶段一**不引入**                                                                                                                                                                       |
+| `@solidjs/router` `filesystem-routing` | —               | ➖ 删除                                                                                                                                                                                  |
+| `nitro`                                | —               | ➖ 删除                                                                                                                                                                                  |
+| `@tanstack/solid-query` / `query-core` | 现有            | 保留（配对问题见 `S2`）                                                                                                                                                                  |
+| `@orpc/*` `varlock` `tailwindcss`      | 现有            | 保留                                                                                                                                                                                     |
 
-**`vite.config.ts`**：移除 `nitro/vite`、`filesystem-routing/vite`、`@solidjs/vite-plugin`；接入 Start 的 vite 插件；保留 `varlockVitePlugin({ ssrInjectMode: "auto-load" })` 与 `@tailwindcss/vite`。
+**`vite.config.ts`**：移除 `nitro/vite`、`filesystem-routing/vite`；`@solidjs/vite-plugin` 改为 `solid({ ssr: true, extensions: [".jsx", ".tsx"] })`（不再传 `start.middleware`）；接入 Start 的 vite 插件。实测可用顺序：`varlockVitePlugin({ ssrInjectMode: "auto-load" })` → `tanstackStart({})` → `solid(...)` → `tailwindcss()`。
 
-**scripts**：`start` 由 `node .output/server/index.mjs` 改为 Start 的产物入口；`dev` 仍是 `vite dev`。
+**scripts**：`start` 由 `node .output/server/index.mjs` 改为**自建 Node/Bun 入口** —— Start 产物 `dist/server/server.js` 只导出 fetch handler（`createServerEntry`），**不自带监听**（见 §7 S0 结论附带回填）；`dev` 仍是 `vite dev`。
 
 **生成物**：`src/routeTree.gen.ts` 由插件**自动**生成，**无需手动 generate 命令** —— 与项目「无强制 codegen 步骤」的约定不冲突；是否入库随插件推荐（落地时定）。
 
@@ -161,6 +163,22 @@ Hono 内部路径同步重排（去掉已在 `route("/api", …)` 前缀里重�
 5. `@rsbuild/core ^2.0.0` peer 是否必装。
 
 任一不通过 → **停止迁移**，结论回写 `D8` 并重新评审。
+
+**S0 结论（2026-10-17 实测，5/5 通过；一次性工程建在仓外、验完即删）**
+
+| #   | 结论                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | 装上即用：`@tanstack/solid-start@2.0.0-rc.8` + `@tanstack/solid-router@2.0.0-rc.8` + `vite@8` 可安装可运行。**但 `@solidjs/web` 会双份**（router 内嵌 rc.15，本项目钉 rc.7），S1 按 §6 抬到 `2.0.0-rc.15` 消除；实测 rc.7 也能跑且水合无报错。11 条 peer 警告来自 router 拉入的 Solid 1 线包（`@solid-primitives/refs`、`@solid-devtools/logger`、内嵌 `@solidjs/meta@0.29.4`），不阻塞。                                                                                    |
+| 2   | 插件共存 OK：`varlockVitePlugin({ ssrInjectMode: "auto-load" })` + `tanstackStart()` + `@solidjs/vite-plugin(ssr:true)` + `@tailwindcss/vite` 同挂无冲突（dev 样式注入与 build 产物均正常）。**但 `auto-load` 不会注入 Start 的默认 server entry** → 服务端取 env 必须沿用现有模式：`src/server/env.server.ts` 内 `import "varlock/auto-load"; export { ENV as env } from "./env";`；`loader` 服务端 / 客户端都跑，**不得** import 它。附带确认 varlock 敏感值泄漏防护生效。 |
+| 3   | **`handlers: { ANY }` 受支持**（`tsc --noEmit` 零错误；GET / POST / 流式响应全过）→ `routes/api/$.ts` 用单键 `ANY` 委托 Hono，无需逐方法映射（`S2` #4 闭环）；挂法沿用 §4 的 `root.route("/api", apiApp)`。                                                                                                                                                                                                                                                                  |
+| 4   | loader 数据出现在**原始 HTML**（首屏 SSR 直出）；水合后浏览器控制台零错误、零失败请求。                                                                                                                                                                                                                                                                                                                                                                                      |
+| 5   | `@rsbuild/core` 是 **optional peer**，**不必装**，只走 Vite 线即可（dev / build 全过）。                                                                                                                                                                                                                                                                                                                                                                                     |
+
+**S0 附带回填（S1 要处理）**
+
+- **prod 入口需自建**：`vite build` 产物 `dist/server/server.js` 只导出 fetch handler，不自带监听 → 见 §6 的 scripts 说明，需自建 Node/Bun 入口或改用 `vite preview`。
+- 构建期 `[IMPORT_IS_UNDEFINED] solid-js/dist/server.js 无 OBSERVE 导出` 警告来自 `solid-router` 的 `Transitioner`（源码已有 `!== undefined` 守卫），属静态分析误报，不阻塞。
+- 版本坐标：`@tanstack/solid-router` / `@tanstack/solid-start` 的 rc 线最新均为 `2.0.0-rc.8`；`@tanstack/solid-query` rc 线为 `6.0.0-rc.5`（本项目在 rc.3，`S2` #6 一并评估）。
 
 ### S1 · 单 app 骨架
 
