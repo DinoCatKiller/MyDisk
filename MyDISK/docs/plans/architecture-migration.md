@@ -1,13 +1,13 @@
 # GUI · 架构迁移计划（Start 单 app + Hono `/api` 子系统）
 
-|        |                                                                   |
-| ------ | ----------------------------------------------------------------- |
-| ID     | `GUI`                                                             |
-| 类型   | 计划（执行前的改动面与验证门槛）                                  |
-| 状态   | **提案**（与 `D8` 同批评审；批准后才开工）                        |
-| 更新   | 2026-10-17                                                        |
-| 何时读 | 执行本迁移前；想知道「改哪些文件、按什么顺序、什么算通过」时      |
-| 规模   | ~2.5k token                                                       |
+|        |                                                              |
+| ------ | ------------------------------------------------------------ |
+| ID     | `GUI`                                                        |
+| 类型   | 计划（执行前的改动面与验证门槛）                             |
+| 状态   | **提案**（与 `D8` 同批评审；批准后才开工）                   |
+| 更新   | 2026-10-17                                                   |
+| 何时读 | 执行本迁移前；想知道「改哪些文件、按什么顺序、什么算通过」时 |
+| 规模   | ~2.5k token                                                  |
 
 > 决策与理由 → `D8`。本文只写**怎么改**、**改哪些**、**什么算通过**。
 > 进度状态不写这里；开工后进 `S1`。
@@ -81,21 +81,21 @@ apps/server/                    # ❌ 整体退役（源码已并入 apps/web/sr
 
 ## 3. 路由文件映射（`@solidjs/router` + `filesystem-routing` → TanStack Router）
 
-| 现行文件                          | 现路径              | 新文件                                    |
-| --------------------------------- | ------------------- | ----------------------------------------- |
-| `routes/index.tsx`                | `/`                 | 同名                                      |
-| `routes/login.tsx`                | `/login`            | 同名                                      |
-| `routes/files/[...path].tsx`      | `/files/*`          | `routes/files/$.tsx`                      |
-| `routes/favorites.tsx`            | `/favorites`        | 同名                                      |
-| `routes/shares.tsx`               | `/shares`           | 同名                                      |
-| `routes/trash.tsx`                | `/trash`            | 同名                                      |
-| `routes/settings/index.tsx`       | `/settings`         | `routes/settings/index.tsx`               |
-| `routes/settings/security.tsx`    | `/settings/security`| 同名                                      |
-| `routes/settings/storage.tsx`     | `/settings/storage` | 同名                                      |
-| `routes/admin/users.tsx`          | `/admin/users`      | 同名                                      |
-| `routes/[...404].tsx`             | 兜底                | `__root.tsx` 的 `notFoundComponent` + `routes/$.tsx` |
-| `App.tsx`                         | 应用根              | 拆入 `__root.tsx`（shell / head / provider） |
-| `Document.tsx`                    | SSR 外壳            | 并入 `__root.tsx` 的 shell 与 `head`      |
+| 现行文件                       | 现路径               | 新文件                                               |
+| ------------------------------ | -------------------- | ---------------------------------------------------- |
+| `routes/index.tsx`             | `/`                  | 同名                                                 |
+| `routes/login.tsx`             | `/login`             | 同名                                                 |
+| `routes/files/[...path].tsx`   | `/files/*`           | `routes/files/$.tsx`                                 |
+| `routes/favorites.tsx`         | `/favorites`         | 同名                                                 |
+| `routes/shares.tsx`            | `/shares`            | 同名                                                 |
+| `routes/trash.tsx`             | `/trash`             | 同名                                                 |
+| `routes/settings/index.tsx`    | `/settings`          | `routes/settings/index.tsx`                          |
+| `routes/settings/security.tsx` | `/settings/security` | 同名                                                 |
+| `routes/settings/storage.tsx`  | `/settings/storage`  | 同名                                                 |
+| `routes/admin/users.tsx`       | `/admin/users`       | 同名                                                 |
+| `routes/[...404].tsx`          | 兜底                 | `__root.tsx` 的 `notFoundComponent` + `routes/$.tsx` |
+| `App.tsx`                      | 应用根               | 拆入 `__root.tsx`（shell / head / provider）         |
+| `Document.tsx`                 | SSR 外壳             | 并入 `__root.tsx` 的 shell 与 `head`                 |
 
 每个页面从「`component` 里 `createQuery` 拉数」改为「`loader` 预填 `queryClient` + `component` 读缓存」：
 
@@ -104,27 +104,27 @@ apps/server/                    # ❌ 整体退役（源码已并入 apps/web/sr
 
 ## 4. 对外 URL 变更（仅 3 处）
 
-| 现在                    | 迁移后              | 是否变 |
-| ----------------------- | ------------------- | ------ |
-| `/rpc`                  | `/api/rpc`          | ⚠️ 变  |
-| `/api/upload/chunk`     | `/api/upload/chunk` | 不变   |
-| `/api/raw/:nodeId`      | `/api/raw/:nodeId`  | 不变   |
-| `/api-reference`        | `/api/reference`    | ⚠️ 变  |
-| `/openapi.json`         | `/api/openapi.json` | ⚠️ 变  |
-| `/dav`（P4）            | `/dav`              | 不变   |
-| `/`（Hono 的问候文本）  | 删除                | —      |
+| 现在                   | 迁移后              | 是否变 |
+| ---------------------- | ------------------- | ------ |
+| `/rpc`                 | `/api/rpc`          | ⚠️ 变  |
+| `/api/upload/chunk`    | `/api/upload/chunk` | 不变   |
+| `/api/raw/:nodeId`     | `/api/raw/:nodeId`  | 不变   |
+| `/api-reference`       | `/api/reference`    | ⚠️ 变  |
+| `/openapi.json`        | `/api/openapi.json` | ⚠️ 变  |
+| `/dav`（P4）           | `/dav`              | 不变   |
+| `/`（Hono 的问候文本） | 删除                | —      |
 
 Hono 内部路径同步重排（去掉已在 `route("/api", …)` 前缀里重复的 `/api`）：`/api/upload/chunk` → `/upload/chunk`、`/api/raw/:id` → `/raw/:id`、`/api-reference` → `/reference`。`/rpc` 与 `/openapi.json` 内部不变。
 
 ## 5. 环境变量与端口
 
-| 变量                                        | 处置                                                       |
-| ------------------------------------------- | ---------------------------------------------------------- |
-| `VITE_SERVER_URL`                           | ❌ 退役（同源，客户端写死 `/api/rpc`）                     |
-| `CORS_ORIGIN`                               | ❌ 退役（同源免 CORS；确认无第三方跨域消费方后再删中间件） |
-| `PORT`                                      | 单端口，建议沿用 `3000`；web 的 `3001` 退役                |
-| `BETTER_AUTH_URL` / `SERVER_URL`            | 指向单 app 地址，二者合一（待确认是否留两个名字）          |
-| 其余（`DATABASE_URL` / `REDIS_URL` / …）    | 原样从 `apps/server/.env.schema` 迁入 `apps/web/.env.schema` |
+| 变量                                     | 处置                                                         |
+| ---------------------------------------- | ------------------------------------------------------------ |
+| `VITE_SERVER_URL`                        | ❌ 退役（同源，客户端写死 `/api/rpc`）                       |
+| `CORS_ORIGIN`                            | ❌ 退役（同源免 CORS；确认无第三方跨域消费方后再删中间件）   |
+| `PORT`                                   | 单端口，建议沿用 `3000`；web 的 `3001` 退役                  |
+| `BETTER_AUTH_URL` / `SERVER_URL`         | 指向单 app 地址，二者合一（待确认是否留两个名字）            |
+| 其余（`DATABASE_URL` / `REDIS_URL` / …） | 原样从 `apps/server/.env.schema` 迁入 `apps/web/.env.schema` |
 
 改完 schema 必须 `bun run env:generate`（Varlock）。
 
@@ -132,15 +132,15 @@ Hono 内部路径同步重排（去掉已在 `route("/api", …)` 前缀里重�
 
 **依赖增删（`apps/web/package.json`）**
 
-| 包                                   | 版本              | 动作                                      |
-| ------------------------------------ | ----------------- | ----------------------------------------- |
-| `@tanstack/solid-router`             | `2.0.0-rc.8`      | ➕ 新增                                    |
-| `@tanstack/solid-start`              | `2.0.0-rc.8`      | ➕ 新增（含 `.../plugin/vite`）            |
-| `@tanstack/solid-router-ssr-query`   | 见 `S2`           | ⏸ 阶段一**不引入**                        |
-| `@solidjs/router` `filesystem-routing` | —               | ➖ 删除                                    |
-| `@solidjs/vite-plugin` `nitro`       | —                 | ➖ 删除                                    |
-| `@tanstack/solid-query` / `query-core` | 现有            | 保留（配对问题见 `S2`）                    |
-| `@orpc/*` `varlock` `tailwindcss`     | 现有              | 保留                                      |
+| 包                                     | 版本         | 动作                            |
+| -------------------------------------- | ------------ | ------------------------------- |
+| `@tanstack/solid-router`               | `2.0.0-rc.8` | ➕ 新增                         |
+| `@tanstack/solid-start`                | `2.0.0-rc.8` | ➕ 新增（含 `.../plugin/vite`） |
+| `@tanstack/solid-router-ssr-query`     | 见 `S2`      | ⏸ 阶段一**不引入**              |
+| `@solidjs/router` `filesystem-routing` | —            | ➖ 删除                         |
+| `@solidjs/vite-plugin` `nitro`         | —            | ➖ 删除                         |
+| `@tanstack/solid-query` / `query-core` | 现有         | 保留（配对问题见 `S2`）         |
+| `@orpc/*` `varlock` `tailwindcss`      | 现有         | 保留                            |
 
 **`vite.config.ts`**：移除 `nitro/vite`、`filesystem-routing/vite`、`@solidjs/vite-plugin`；接入 Start 的 vite 插件；保留 `varlockVitePlugin({ ssrInjectMode: "auto-load" })` 与 `@tailwindcss/vite`。
 
@@ -193,10 +193,10 @@ Hono 内部路径同步重排（去掉已在 `route("/api", …)` 前缀里重�
 
 ## 9. 风险
 
-| 风险                                                    | 影响                 | 应对                                          |
-| ------------------------------------------------------- | -------------------- | --------------------------------------------- |
-| `rc.8` 与本项目 `rc.7` 的 peer 边界不稳                 | 装不上 / 运行期怪象   | S0 验证点 1，且锁版本                          |
-| Start 的 vite 插件与 Varlock SSR 注入不兼容 | 服务端读不到 env | S0 验证点 2 |
-| `@rsbuild/core` peer 必装，构建链被迫改变 | 构建配置重做 | S0 验证点 5；接受则记录进本计划 |
-| P2 已交付主链路面大 | 回归遗漏 | §7 S2 逐页改 + S4 手工用例清单 |
-| Hono 路径重排漏改 | 数据面 404 | §4 表逐条核对 + `/api/upload/chunk`、`/api/raw/:id` 显式用例 |
+| 风险                                        | 影响                | 应对                                                         |
+| ------------------------------------------- | ------------------- | ------------------------------------------------------------ |
+| `rc.8` 与本项目 `rc.7` 的 peer 边界不稳     | 装不上 / 运行期怪象 | S0 验证点 1，且锁版本                                        |
+| Start 的 vite 插件与 Varlock SSR 注入不兼容 | 服务端读不到 env    | S0 验证点 2                                                  |
+| `@rsbuild/core` peer 必装，构建链被迫改变   | 构建配置重做        | S0 验证点 5；接受则记录进本计划                              |
+| P2 已交付主链路面大                         | 回归遗漏            | §7 S2 逐页改 + S4 手工用例清单                               |
+| Hono 路径重排漏改                           | 数据面 404          | §4 表逐条核对 + `/api/upload/chunk`、`/api/raw/:id` 显式用例 |
