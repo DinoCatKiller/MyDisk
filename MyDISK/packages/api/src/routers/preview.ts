@@ -1,11 +1,11 @@
 import { eq } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
-import * as z from "zod";
 
 import { fileNode } from "@MyDISK/db/schema";
 
 import { protectedProcedure } from "../index";
 import { buildRawUrl, signRawToken } from "../lib/raw-token";
+import { previewUrlInput, previewUrlSchema } from "../schemas/preview";
 
 const TTL_SECONDS = 15 * 60;
 
@@ -17,13 +17,8 @@ const url = protectedProcedure
     description: "返回 /api/raw 的签名地址，用于下载或预览（图片 / 音视频）",
     tags: ["preview"],
   })
-  .input(
-    z.object({
-      nodeId: z.uuid(),
-      inline: z.boolean().default(true),
-      download: z.boolean().default(false),
-    }),
-  )
+  .input(previewUrlInput)
+  .output(previewUrlSchema)
   .handler(async ({ input, context }) => {
     const rows = await context.db
       .select({ id: fileNode.id, type: fileNode.type })

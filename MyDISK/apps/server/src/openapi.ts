@@ -135,6 +135,10 @@ const binaryPaths = {
           description: "Range 分片响应",
           content: { "application/octet-stream": { schema: { type: "string", format: "binary" } } },
         },
+        400: {
+          description: "查询参数非法（`token` 为空串，或 `dl` / `inline` 取值不是 `1`）",
+          content: { "application/json": { schema: errorResponseSchema } },
+        },
         401: {
           description: "未授权",
           content: { "application/json": { schema: errorResponseSchema } },

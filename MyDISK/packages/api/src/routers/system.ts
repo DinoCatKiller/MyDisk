@@ -5,10 +5,12 @@ import type { Database } from "@MyDISK/db";
 import { fileNode, shareLink, storageConnection, systemSetting } from "@MyDISK/db/schema";
 
 import { founderProcedure, protectedProcedure, publicProcedure } from "../index";
-
-const settingsInput = z.object({
-  settings: z.record(z.string(), z.unknown()),
-});
+import {
+  installStatusSchema,
+  settingsSchema,
+  systemStatsSchema,
+  updateSettingsInput,
+} from "../schemas/system";
 
 /** 安装标记键，由 CLI install 写入 */
 export const INSTALLED_AT_KEY = "installed_at";
@@ -30,6 +32,7 @@ const health = publicProcedure
     description: "用于探活与前端连接状态指示",
     tags: ["system"],
   })
+  .output(z.string())
   .handler(() => "OK");
 
 const installStatus = publicProcedure
@@ -40,6 +43,7 @@ const installStatus = publicProcedure
     description: "未安装时前端引导用户执行 ./cli.sh install",
     tags: ["system"],
   })
+  .output(installStatusSchema)
   .handler(async ({ context }) => {
     const rows = await context.db
       .select()
@@ -60,6 +64,7 @@ const getSettings = protectedProcedure
     summary: "读取系统设置",
     tags: ["system"],
   })
+  .output(settingsSchema)
   .handler(({ context }) => readSettings(context.db));
 
 const updateSettings = founderProcedure
@@ -69,7 +74,8 @@ const updateSettings = founderProcedure
     summary: "更新系统设置",
     tags: ["system"],
   })
-  .input(settingsInput)
+  .input(updateSettingsInput)
+  .output(settingsSchema)
   .handler(async ({ input, context }) => {
     for (const [key, value] of Object.entries(input.settings)) {
       await context.db
@@ -90,6 +96,7 @@ const stats = protectedProcedure
     summary: "概览统计",
     tags: ["system"],
   })
+  .output(systemStatsSchema)
   .handler(async ({ context }) => {
     const [fileCountRow] = await context.db
       .select({ value: count() })

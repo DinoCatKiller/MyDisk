@@ -5,49 +5,6 @@ import type { Database } from "@MyDISK/db";
 import { storageConnection, type StorageConnectionRow } from "@MyDISK/db/schema";
 import { createStorageDriver, type StorageDriver } from "@MyDISK/storage";
 
-/** 连接对外的安全视图：绝不携带密钥原文 */
-export type PublicConnection = {
-  id: string;
-  name: string;
-  type: StorageConnectionRow["type"];
-  isDefault: boolean;
-  status: StorageConnectionRow["status"];
-  bucket: string | null;
-  region: string | null;
-  endpoint: string | null;
-  rootPrefix: string;
-  configMasked: Record<string, string>;
-  totalSize: number;
-  fileCount: number;
-  syncStatus: StorageConnectionRow["syncStatus"];
-  lastSyncAt: Date | null;
-  lastError: string | null;
-  createdAt: Date;
-  updatedAt: Date;
-};
-
-export function toPublicConnection(row: StorageConnectionRow): PublicConnection {
-  return {
-    id: row.id,
-    name: row.name,
-    type: row.type,
-    isDefault: row.isDefault,
-    status: row.status,
-    bucket: row.bucket,
-    region: row.region,
-    endpoint: row.endpoint,
-    rootPrefix: row.rootPrefix,
-    configMasked: row.configMasked,
-    totalSize: row.totalSize,
-    fileCount: row.fileCount,
-    syncStatus: row.syncStatus,
-    lastSyncAt: row.lastSyncAt,
-    lastError: row.lastError,
-    createdAt: row.createdAt,
-    updatedAt: row.updatedAt,
-  };
-}
-
 /** 指定连接，未指定时取全局默认连接 */
 export async function resolveConnection(
   db: Database,

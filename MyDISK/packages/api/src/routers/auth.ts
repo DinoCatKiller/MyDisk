@@ -5,6 +5,19 @@ import * as z from "zod";
 import { user } from "@MyDISK/db/schema";
 
 import { founderProcedure, protectedProcedure, publicProcedure } from "../index";
+import {
+  adminSchema,
+  changePasswordInput,
+  createAdminInput,
+  deleteAdminInput,
+  sessionOutput,
+  setAdminStatusInput,
+  signInInput,
+  signInOutput,
+  updateProfileInput,
+  userRowSchema,
+} from "../schemas/auth";
+import { okSchema } from "../schemas/common";
 
 /** 把 Better-Auth 返回的 Set-Cookie 收集到响应头，由 server 层写入最终响应 */
 function appendSetCookies(target: Headers, source: Headers): void {
@@ -22,31 +35,6 @@ function appendSetCookies(target: Headers, source: Headers): void {
   }
 }
 
-const emailSchema = z.email({ message: "邮箱格式不正确" });
-
-const signInInput = z.object({
-  email: emailSchema,
-  password: z.string().min(1, "请输入密码"),
-  rememberMe: z.boolean().optional(),
-});
-
-const changePasswordInput = z.object({
-  currentPassword: z.string().min(1, "请输入当前密码"),
-  newPassword: z.string().min(8, "新密码至少 8 位"),
-});
-
-const updateProfileInput = z.object({
-  name: z.string().min(1).max(64).optional(),
-  image: z.string().url().nullish(),
-});
-
-const createAdminInput = z.object({
-  email: emailSchema,
-  name: z.string().min(1).max(64),
-  password: z.string().min(8, "密码至少 8 位"),
-  mustChangePassword: z.boolean().optional(),
-});
-
 const getSession = publicProcedure
   .route({
     method: "GET",
@@ -54,6 +42,7 @@ const getSession = publicProcedure
     summary: "获取当前会话",
     tags: ["auth"],
   })
+  .output(sessionOutput)
   .handler(({ context }) => {
     if (!context.session?.user) {
       return null;
@@ -73,6 +62,7 @@ const signIn = publicProcedure
     tags: ["auth"],
   })
   .input(signInInput)
+  .output(signInOutput)
   .handler(async ({ input, context }) => {
     const existing = await context.db
       .select({ id: user.id, status: user.status })
@@ -120,6 +110,7 @@ const signOut = protectedProcedure
     summary: "退出登录",
     tags: ["auth"],
   })
+  .output(okSchema)
   .handler(async ({ context }) => {
     const result = await context.auth.api.signOut({
       headers: context.headers,
@@ -138,6 +129,7 @@ const changePassword = protectedProcedure
     tags: ["auth"],
   })
   .input(changePasswordInput)
+  .output(okSchema)
   .handler(async ({ input, context }) => {
     const result = await context.auth.api.changePassword({
       body: {
@@ -166,6 +158,7 @@ const updateProfile = protectedProcedure
     tags: ["auth"],
   })
   .input(updateProfileInput)
+  .output(userRowSchema)
   .handler(async ({ input, context }) => {
     const [updated] = await context.db
       .update(user)
@@ -176,6 +169,9 @@ const updateProfile = protectedProcedure
       .where(eq(user.id, context.session.user.id))
       .returning();
 
+    if (!updated) {
+      throw new ORPCError("NOT_FOUND", { message: "账户不存在" });
+    }
     return updated;
   });
 
@@ -186,6 +182,7 @@ const listAdmins = founderProcedure
     summary: "管理员列表",
     tags: ["auth"],
   })
+  .output(z.array(adminSchema))
   .handler(async ({ context }) => {
     const rows = await context.db
       .select({
@@ -212,6 +209,7 @@ const createAdmin = founderProcedure
     tags: ["auth"],
   })
   .input(createAdminInput)
+  .output(adminSchema)
   .handler(async ({ input, context }) => {
     const existing = await context.db
       .select({ id: user.id })
@@ -249,6 +247,9 @@ const createAdmin = founderProcedure
         createdAt: user.createdAt,
       });
 
+    if (!row) {
+      throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "创建管理员失败" });
+    }
     return row;
   });
 
@@ -260,7 +261,8 @@ const deleteAdmin = founderProcedure
     description: "创始人不可被删除",
     tags: ["auth"],
   })
-  .input(z.object({ userId: z.string().min(1) }))
+  .input(deleteAdminInput)
+  .output(okSchema)
   .handler(async ({ input, context }) => {
     const rows = await context.db
       .select({ id: user.id, role: user.role })
@@ -290,12 +292,8 @@ const setAdminStatus = founderProcedure
     description: "创始人不可被禁用",
     tags: ["auth"],
   })
-  .input(
-    z.object({
-      userId: z.string().min(1),
-      status: z.enum(["active", "disabled"]),
-    }),
-  )
+  .input(setAdminStatusInput)
+  .output(adminSchema)
   .handler(async ({ input, context }) => {
     const rows = await context.db
       .select({ id: user.id, role: user.role })
@@ -322,6 +320,9 @@ const setAdminStatus = founderProcedure
         status: user.status,
       });
 
+    if (!row) {
+      throw new ORPCError("NOT_FOUND", { message: "管理员不存在" });
+    }
     return row;
   });
 

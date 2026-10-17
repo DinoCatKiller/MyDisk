@@ -5,7 +5,7 @@ import * as z from "zod";
 import { storageConnection } from "@MyDISK/db/schema";
 
 import { protectedProcedure } from "../index";
-import { toPublicConnection } from "../lib/connections";
+import { connectionIdInput, publicConnectionSchema } from "../schemas/connection";
 
 const list = protectedProcedure
   .route({
@@ -14,12 +14,13 @@ const list = protectedProcedure
     summary: "存储连接列表（脱敏）",
     tags: ["connection"],
   })
+  .output(z.array(publicConnectionSchema))
   .handler(async ({ context }) => {
     const rows = await context.db
       .select()
       .from(storageConnection)
       .orderBy(asc(storageConnection.createdAt));
-    return rows.map(toPublicConnection);
+    return rows.map((row) => publicConnectionSchema.parse(row));
   });
 
 const get = protectedProcedure
@@ -29,7 +30,8 @@ const get = protectedProcedure
     summary: "获取单个存储连接（脱敏）",
     tags: ["connection"],
   })
-  .input(z.object({ id: z.uuid() }))
+  .input(connectionIdInput)
+  .output(publicConnectionSchema)
   .handler(async ({ input, context }) => {
     const rows = await context.db
       .select()
@@ -40,7 +42,7 @@ const get = protectedProcedure
     if (!row) {
       throw new ORPCError("NOT_FOUND", { message: "存储连接不存在" });
     }
-    return toPublicConnection(row);
+    return publicConnectionSchema.parse(row);
   });
 
 export const connectionRouter = {

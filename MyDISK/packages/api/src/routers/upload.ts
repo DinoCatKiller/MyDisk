@@ -1,6 +1,5 @@
 import { and, eq, inArray, isNull, lt, or } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
-import * as z from "zod";
 
 import type { Database } from "@MyDISK/db";
 import { fileNode, uploadSession } from "@MyDISK/db/schema";
@@ -16,22 +15,17 @@ import {
   readChunkSize,
   resolveUniqueName,
 } from "../lib/files";
-
-const fingerprintSchema = z.string().min(8).max(256);
-
-const initInput = z.object({
-  connectionId: z.uuid().nullish(),
-  parentId: z.uuid().nullish(),
-  fingerprint: fingerprintSchema,
-  originalName: z.string().min(1),
-  mime: z.string().nullish(),
-  size: z.number().int().nonnegative(),
-  chunkSize: z.number().int().positive().nullish(),
-  sha256: z.string().length(64).nullish(),
-  relativePath: z.string().nullish(),
-});
-
-const uploadIdInput = z.object({ uploadId: z.uuid() });
+import { okSchema } from "../schemas/common";
+import {
+  chunkMetaInput,
+  chunkMetaSchema,
+  cleanupSchema,
+  initUploadInput,
+  uploadCompleteSchema,
+  uploadIdInput,
+  uploadInitSchema,
+  uploadSessionArraySchema,
+} from "../schemas/upload";
 
 /** 校验目标目录：必须是同连接、未删除的文件夹 */
 async function assertParentFolder(
@@ -73,7 +67,8 @@ const init = protectedProcedure
     description: "同指纹复用会话实现断点续传；带 sha256 且命中同连接同哈希文件时秒传",
     tags: ["upload"],
   })
-  .input(initInput)
+  .input(initUploadInput)
+  .output(uploadInitSchema)
   .handler(async ({ input, context }) => {
     const userId = context.session.user.id;
     const connection = await resolveConnection(context.db, input.connectionId);
@@ -137,6 +132,9 @@ const init = protectedProcedure
             status: "active",
           })
           .returning();
+        if (!created) {
+          throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "秒传建引用失败" });
+        }
         return { instant: true as const, fileNode: created };
       }
     }
@@ -212,10 +210,13 @@ const init = protectedProcedure
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000),
       })
       .returning();
+    if (!created) {
+      throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "创建上传会话失败" });
+    }
 
     return {
       instant: false as const,
-      uploadId: created?.id,
+      uploadId: created.id,
       chunkSize,
       totalChunks,
       uploadedParts: [] as number[],
@@ -232,6 +233,7 @@ const complete = protectedProcedure
     tags: ["upload"],
   })
   .input(uploadIdInput)
+  .output(uploadCompleteSchema)
   .handler(async ({ input, context }) => {
     const userId = context.session.user.id;
     const rows = await context.db
@@ -308,6 +310,9 @@ const complete = protectedProcedure
       .returning();
 
     await context.db.delete(uploadSession).where(eq(uploadSession.id, session.id));
+    if (!created) {
+      throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "写入文件记录失败" });
+    }
     return { fileNode: created };
   });
 
@@ -319,6 +324,7 @@ const abort = protectedProcedure
     tags: ["upload"],
   })
   .input(uploadIdInput)
+  .output(okSchema)
   .handler(async ({ input, context }) => {
     const userId = context.session.user.id;
     const rows = await context.db
@@ -349,6 +355,7 @@ const setStatus = (status: "paused" | "uploading") =>
       tags: ["upload"],
     })
     .input(uploadIdInput)
+    .output(okSchema)
     .handler(async ({ input, context }) => {
       await context.db
         .update(uploadSession)
@@ -372,7 +379,8 @@ const chunkMeta = protectedProcedure
     summary: "查询单个分片是否已收到",
     tags: ["upload"],
   })
-  .input(z.object({ uploadId: z.uuid(), index: z.number().int().nonnegative() }))
+  .input(chunkMetaInput)
+  .output(chunkMetaSchema)
   .handler(async ({ input, context }) => {
     const rows = await context.db
       .select()
@@ -399,6 +407,7 @@ const listPending = protectedProcedure
     description: "用于浏览器刷新后重建上传队列",
     tags: ["upload"],
   })
+  .output(uploadSessionArraySchema)
   .handler(async ({ context }) => {
     const rows = await context.db
       .select()
@@ -420,6 +429,7 @@ const cleanupExpired = protectedProcedure
     summary: "清理过期上传会话",
     tags: ["upload"],
   })
+  .output(cleanupSchema)
   .handler(async ({ context }) => {
     const rows = await context.db
       .select()

@@ -1,15 +1,12 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
+import { rawTokenPayloadSchema, type RawTokenPayload } from "../schemas/raw";
+
 /**
  * 二进制面（/api/raw/*）的短时签名令牌。
  * HMAC-SHA256 签名，payload 含资源与用户标识，绑定归属校验由服务端完成。
  */
-export type RawTokenPayload = {
-  nodeId: string;
-  userId: string;
-  /** 过期时间（秒级 unix 时间戳） */
-  exp: number;
-};
+export type { RawTokenPayload };
 
 function toBase64Url(input: string): string {
   return Buffer.from(input, "utf8").toString("base64url");
@@ -35,16 +32,18 @@ export function verifyRawToken(token: string, secret: string): RawTokenPayload |
   if (given.length !== want.length || !timingSafeEqual(given, want)) {
     return null;
   }
-  let payload: RawTokenPayload;
+  let parsed: RawTokenPayload;
   try {
-    payload = JSON.parse(Buffer.from(body, "base64url").toString("utf8")) as RawTokenPayload;
+    parsed = rawTokenPayloadSchema.parse(
+      JSON.parse(Buffer.from(body, "base64url").toString("utf8")),
+    );
   } catch {
     return null;
   }
-  if (typeof payload.exp !== "number" || payload.exp * 1000 < Date.now()) {
+  if (parsed.exp * 1000 < Date.now()) {
     return null;
   }
-  return payload;
+  return parsed;
 }
 
 /** 生成 /api/raw 取流地址（相对路径，前端按服务地址拼接） */

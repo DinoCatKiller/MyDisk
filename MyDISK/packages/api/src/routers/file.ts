@@ -8,31 +8,28 @@ import { fileNode, shareLink } from "@MyDISK/db/schema";
 import { protectedProcedure } from "../index";
 import { driverFor, resolveConnection } from "../lib/connections";
 import { collectSubtree, extOf, resolveUniqueName } from "../lib/files";
-
-const paginationInput = z.object({
-  page: z.number().int().min(1).default(1),
-  pageSize: z.number().int().min(1).max(500).default(50),
-});
-
-const sortInput = z.object({
-  field: z.enum(["name", "size", "createdAt", "updatedAt", "type"]),
-  order: z.enum(["asc", "desc"]),
-});
-
-const listInput = paginationInput.extend({
-  connectionId: z.uuid().nullish(),
-  parentId: z.uuid().nullish(),
-  keyword: z.string().nullish(),
-  type: z.enum(["file", "folder"]).nullish(),
-  sort: sortInput.optional(),
-});
-
-const nodeIdInput = z.object({ nodeId: z.uuid() });
-const nodeIdsInput = z.object({ nodeIds: z.array(z.uuid()).min(1) });
+import { paginationSchema, sortSchema } from "../schemas/common";
+import {
+  fileNodeArraySchema,
+  fileNodeListSchema,
+  fileNodeSchema,
+  fileStatsSchema,
+  listFilesInput,
+  mkdirInput,
+  moveInput,
+  movedSchema,
+  nodeIdInput,
+  nodeIdsInput,
+  purgedSchema,
+  removedSchema,
+  renameInput,
+  restoredSchema,
+  treeInput,
+} from "../schemas/file";
 
 type Db = Database;
 
-function orderBy(sort?: z.infer<typeof sortInput>) {
+function orderBy(sort?: z.infer<typeof sortSchema>) {
   const direction = sort?.order === "desc" ? desc : asc;
   switch (sort?.field) {
     case "size":
@@ -67,7 +64,8 @@ const list = protectedProcedure
     summary: "列出目录内容",
     tags: ["file"],
   })
-  .input(listInput)
+  .input(listFilesInput)
+  .output(fileNodeListSchema)
   .handler(async ({ input, context }) => {
     const connection = await resolveConnection(context.db, input.connectionId);
     const where = and(
@@ -102,7 +100,8 @@ const tree = protectedProcedure
     summary: "列出子目录（惰性懒加载）",
     tags: ["file"],
   })
-  .input(z.object({ connectionId: z.uuid().nullish(), parentId: z.uuid().nullish() }))
+  .input(treeInput)
+  .output(fileNodeArraySchema)
   .handler(async ({ input, context }) => {
     const connection = await resolveConnection(context.db, input.connectionId);
     return context.db
@@ -127,6 +126,7 @@ const path = protectedProcedure
     tags: ["file"],
   })
   .input(nodeIdInput)
+  .output(fileNodeArraySchema)
   .handler(async ({ input, context }) => {
     const chain: (typeof fileNode.$inferSelect)[] = [];
     let currentId: string | null = input.nodeId;
@@ -149,6 +149,7 @@ const path = protectedProcedure
 const get = protectedProcedure
   .route({ method: "GET", path: "/files/{nodeId}", summary: "获取单个节点", tags: ["file"] })
   .input(nodeIdInput)
+  .output(fileNodeSchema)
   .handler(async ({ input, context }) => {
     const rows = await context.db
       .select()
@@ -164,13 +165,8 @@ const get = protectedProcedure
 
 const mkdir = protectedProcedure
   .route({ method: "POST", path: "/files/folders", summary: "新建文件夹", tags: ["file"] })
-  .input(
-    z.object({
-      connectionId: z.uuid().nullish(),
-      parentId: z.uuid().nullish(),
-      name: z.string().min(1).max(255),
-    }),
-  )
+  .input(mkdirInput)
+  .output(fileNodeSchema)
   .handler(async ({ input, context }) => {
     const connection = await resolveConnection(context.db, input.connectionId);
     const name = await resolveUniqueName(context.db, {
@@ -190,6 +186,9 @@ const mkdir = protectedProcedure
         status: "active",
       })
       .returning();
+    if (!created) {
+      throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "创建文件夹失败" });
+    }
     return created;
   });
 
@@ -200,7 +199,8 @@ const rename = protectedProcedure
     summary: "重命名（只改展示名，不动物理键）",
     tags: ["file"],
   })
-  .input(z.object({ nodeId: z.uuid(), name: z.string().min(1).max(255) }))
+  .input(renameInput)
+  .output(fileNodeSchema)
   .handler(async ({ input, context }) => {
     const [node] = await requireNodes(context.db, [input.nodeId]);
     if (!node) {
@@ -217,6 +217,9 @@ const rename = protectedProcedure
       .set({ name, ext: node.type === "file" ? extOf(name) : node.ext })
       .where(eq(fileNode.id, node.id))
       .returning();
+    if (!updated) {
+      throw new ORPCError("NOT_FOUND", { message: "文件不存在" });
+    }
     return updated;
   });
 
@@ -227,7 +230,8 @@ const move = protectedProcedure
     summary: "移动节点到目标目录（P2 仅支持同连接）",
     tags: ["file"],
   })
-  .input(z.object({ nodeIds: z.array(z.uuid()).min(1), targetParentId: z.uuid().nullish() }))
+  .input(moveInput)
+  .output(movedSchema)
   .handler(async ({ input, context }) => {
     const nodes = await requireNodes(context.db, input.nodeIds);
     const connectionId = nodes[0]?.connectionId;
@@ -272,6 +276,7 @@ const remove = protectedProcedure
     tags: ["file"],
   })
   .input(nodeIdsInput)
+  .output(removedSchema)
   .handler(async ({ input, context }) => {
     const subtree = await collectSubtree(context.db, input.nodeIds);
     const ids = subtree.map((node) => node.id);
@@ -291,7 +296,8 @@ const remove = protectedProcedure
 
 const listTrash = protectedProcedure
   .route({ method: "GET", path: "/files/trash", summary: "回收站列表", tags: ["file"] })
-  .input(paginationInput)
+  .input(paginationSchema)
+  .output(fileNodeListSchema)
   .handler(async ({ input, context }) => {
     // 回收站只展示被直接删除的根条目（子孙跟随展示）
     const where = isNotNull(fileNode.deletedAt);
@@ -314,6 +320,7 @@ const restore = protectedProcedure
     tags: ["file"],
   })
   .input(nodeIdsInput)
+  .output(restoredSchema)
   .handler(async ({ input, context }) => {
     const subtree = await collectSubtree(context.db, input.nodeIds);
     const ids = subtree.map((node) => node.id);
@@ -370,10 +377,12 @@ async function purgeNodes(context: { db: Db; storageRoot: string }, ids: string[
 const purge = protectedProcedure
   .route({ method: "DELETE", path: "/files/purge", summary: "彻底删除", tags: ["file"] })
   .input(nodeIdsInput)
+  .output(purgedSchema)
   .handler(async ({ input, context }) => ({ purged: await purgeNodes(context, input.nodeIds) }));
 
 const emptyTrash = protectedProcedure
   .route({ method: "POST", path: "/files/trash/empty", summary: "清空回收站", tags: ["file"] })
+  .output(purgedSchema)
   .handler(async ({ context }) => {
     const rows = await context.db
       .select({ id: fileNode.id })
@@ -393,6 +402,7 @@ const emptyTrash = protectedProcedure
 const stats = protectedProcedure
   .route({ method: "GET", path: "/files/{nodeId}/stats", summary: "属性面板数据", tags: ["file"] })
   .input(nodeIdInput)
+  .output(fileStatsSchema)
   .handler(async ({ input, context }) => {
     const rows = await context.db
       .select()

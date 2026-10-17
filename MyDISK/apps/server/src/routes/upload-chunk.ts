@@ -2,6 +2,7 @@ import { eq, sql } from "drizzle-orm";
 import { Hono } from "hono";
 
 import { driverFor, resolveConnection } from "@MyDISK/api/lib/connections";
+import { uploadChunkQuery } from "@MyDISK/api/schemas/upload";
 import { uploadSession } from "@MyDISK/db/schema";
 
 import { serverConfig } from "../config";
@@ -20,11 +21,15 @@ uploadChunkRoute.post("/api/upload/chunk", async (c) => {
     return c.json({ code: "UNAUTHORIZED", message: "未登录" }, 401);
   }
 
-  const uploadId = c.req.query("uploadId");
-  const index = Number(c.req.query("index"));
-  if (!uploadId || !Number.isInteger(index) || index < 0) {
+  // query 校验与 oRPC 侧共用同一份 schema（`A3` §7）；uuid 校验可挡住会打到 PG 的非法 id
+  const parsed = uploadChunkQuery.safeParse({
+    uploadId: c.req.query("uploadId"),
+    index: c.req.query("index"),
+  });
+  if (!parsed.success) {
     return c.json({ code: "BAD_REQUEST", message: "缺少或非法的 uploadId / index" }, 400);
   }
+  const { uploadId, index } = parsed.data;
 
   const rows = await db.select().from(uploadSession).where(eq(uploadSession.id, uploadId)).limit(1);
   const row = rows[0];

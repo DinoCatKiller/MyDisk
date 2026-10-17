@@ -19,17 +19,18 @@
 | `src/index.ts`               | Hono 装配：`logger`/`cors`；`RPCHandler`(前缀 `/rpc`)、`OpenAPIHandler`(前缀 `/api-reference`)、`GET /openapi.json`、`GET /`；把过程内 `Set-Cookie` 合并回最终响应                                                             |
 | `src/services.ts`            | `getDb()`；`auth`（禁注册）与 `adminAuth`（允许建号）两实例                                                                                                                                                                    |
 | `src/context.ts`             | `createContext`：注入 `db`/`auth`/`adminAuth`/`session`/`headers`/`responseHeaders`/`storageRoot`/`signingSecret`/`requestInfo`(ip、ua)                                                                                        |
-| `src/routes/upload-chunk.ts` | `POST /api/upload/chunk?uploadId&index`：session Cookie 鉴权 → 驱动 `multipart.uploadPart` → 原子追加 `uploaded_parts`                                                                                                         |
-| `src/routes/raw.ts`          | `GET/HEAD /api/raw/:nodeId`：签名 token 或 Cookie 双鉴权 → Range → 200/206/416；`dl=1` 触发下载文件名                                                                                                                          |
+| `src/routes/upload-chunk.ts` | `POST /api/upload/chunk?uploadId&index`：query 经 `@MyDISK/api/schemas/upload` 的 `uploadChunkQuery` 校验 → session Cookie 鉴权 → 驱动 `multipart.uploadPart` → 原子追加 `uploaded_parts`                                      |
+| `src/routes/raw.ts`          | `GET/HEAD /api/raw/:nodeId`：path/query/Range 经 `@MyDISK/api/schemas/raw` 校验 → 签名 token 或 Cookie 双鉴权 → Range → 200/206/416；`dl=1` 触发下载文件名                                                                     |
 | `src/config.ts`              | `serverConfig`：`projectRoot`/`port`/`redisUrl`/`storageRoot`/`uploadChunkSize`/`encryptionKey`/`apiReferenceEnabled`/`webdavEnabled`                                                                                          |
 | `src/env.server.ts`          | 经 varlock 加载并透出 `env`                                                                                                                                                                                                    |
 | `src/openapi.ts`             | `generateOpenApiDocument`：`OpenAPIGenerator` + Zod→JSON Schema（3.1），并合并二进制面**手写 spec**（`/api/upload/chunk`、`/api/raw/{nodeId}`）与三个 security scheme（`cookieAuth`/`bearerAuth`/`queryToken`），见 `A3` §11.4 |
 
-## 必须知道的三个设计决定
+## 必须知道的四个设计决定
 
 1. **控制面 / 数据面双协议（`D3`）**：8MB 分片走 JSON-RPC 会 base64 膨胀 33% 且内存翻倍，所以分片上传、流式下载、预览取流走 Hono 原生路由。P2 已落地 `/api/upload/chunk` 与 `/api/raw/:nodeId`（注册在 oRPC 中间件**之前**，命中即返回）；`/api/raw/share/*` 与 `/dav/*` 属 P3/P4。
 2. **`Set-Cookie` 必须手动合并**：oRPC 过程里 Better-Auth 返回的响应头不会自动进最终响应，过程只把它写进 `context.responseHeaders`，由 `index.ts` 逐个 append。漏掉这步登录 Cookie 就丢了。
 3. **`/api/auth/*` 不对外暴露（`D4`）**：认证只走 `authRouter`，避免绕过创始人约束的旁路端点。
+4. **二进制面参数不另写解析**：path / query / `Range` 的 schema 由 `@MyDISK/api/schemas/raw`（与 `.../upload` 的 `uploadChunkQuery`）提供——同一参数在 oRPC 与二进制面只有一份定义，`server` 只做 `safeParse` 与错误码映射（`400` / `416`）。
 
 ## 相关
 

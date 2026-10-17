@@ -122,7 +122,7 @@ const sort = z.object({
 | `syncPause` / `syncResume` / `syncCancel` | founder   | `{ taskId }`                                                       | `{ ok }`                      |                                                       |
 | `usage`                                   | protected | `{ id }`                                                           | `{ totalSize, fileCount }`    |                                                       |
 
-> **P2 实现状态**（`packages/api/src/routers/connection.ts`）：仅落地 `list` / `get`，输出统一经 `toPublicConnection` 脱敏（剔除 `config_enc` 密文，绝不含密钥原文）。其余 CRUD / `test` / `setDefault` / `sync*` / `usage` 属 P3。
+> **P2 实现状态**（`packages/api/src/routers/connection.ts`）：仅落地 `list` / `get`，输出经 `publicConnectionSchema`（`schemas/connection.ts`）**显式白名单**脱敏——字段逐个列举，`config_enc` 密文不在其列，绝不携带密钥原文。其余 CRUD / `test` / `setDefault` / `sync*` / `usage` 属 P3。
 
 ---
 
@@ -194,12 +194,17 @@ const sort = z.object({
 | `/dav/*`                          | WebDAV 方法 | Basic Auth（管理员或 webdav_token） | 见 `A6` §8                                                                |
 
 > 签名 token（`packages/api/src/lib/raw-token.ts`）：`HMAC-SHA256` 签名的 `base64url(payload).base64url(sig)`，TTL 900 秒，
-> payload 含 `{ nodeId, userId, exp }`；服务端每次校验签名、过期与 `nodeId` 归属（防止令牌被挪用）。
+> payload 含 `{ nodeId, userId, exp }`（结构由 `schemas/raw.ts` 的 `rawTokenPayloadSchema` 校验）；服务端每次校验签名、过期与 `nodeId` 归属（防止令牌被挪用）。
 > 前端经 `preview.url` 取签名地址；跨域 `<img>/<video>` 无法带 Cookie，故必须用签名 URL 而非会话 Cookie。
 >
 > **P2 实现状态**：`/api/upload/chunk`（`apps/server/src/routes/upload-chunk.ts`，session Cookie 鉴权 + 驱动 `multipart.uploadPart`）
 > 与 `/api/raw/:nodeId`（`apps/server/src/routes/raw.ts`，签名 token 或 Cookie 双鉴权，Range → 206/416）已落地；
 > `/api/raw/share/*` 与 `/dav/*` 属 P3/P4。
+>
+> 二进制面的参数（path / query / `Range` 头）同样由 Zod 校验，schema 与 oRPC 侧在**同一处**（`packages/api/src/schemas/`）：
+> `raw.ts` 提供 `rawNodeIdSchema` / `rawQuerySchema` / `rawTokenPayloadSchema` / `byteRangeHeaderSchema(size)`，
+> `upload.ts` 提供 `uploadChunkQuery`；`apps/server` 直接 import 复用，不再手写 `Number()` 解析。
+> `nodeId` / `uploadId` 校验为 uuid，可挡住会打到 PG 的非法 id（否则 PG 报 `invalid input syntax for uuid` → 500）。
 
 ---
 
@@ -324,7 +329,8 @@ const rawPaths = {
 
 ### 11.5 约定与校验
 
-- 所有 `input`/`output` 必须 Zod 定义（否则无法转 JSON Schema）；
+- 所有 `input`/`output` 必须 Zod 定义（否则无法转 JSON Schema）；**所有 schema 集中在 `packages/api/src/schemas/`**（按 router 分文件，`common.ts` 放分页 / 排序 / `queryIntSchema` / `ok`），router 只声明 `.input()` / `.output()`；
+  - 非 oRPC 的**二进制面参数 schema 也放这里**（`raw.ts` / `upload.ts`），由 `apps/server` 复用，避免同一参数两套解析；
 - 每个操作必填 `summary` + `tags`；
 - 错误统一 `components.schemas.ErrorResponse`（含 `code` 字段，取值见 §1.2）；
 - CI 校验：spec 中的 path 数 = oRPC 过程数 + 手写补充路径数，防止接口漏文档。
