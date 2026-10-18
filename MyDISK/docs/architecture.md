@@ -11,28 +11,25 @@
 
 ## TL;DR
 
-- 形态：**web(:3001) 前端 → server(:3000) Hono**，server 后面挂 PostgreSQL(:5432) / Redis(:6379) / 存储驱动；`apps/worker` 独立进程消费队列。
-- 两层接口面（`D3`）：**控制面走 oRPC `/rpc`**（类型安全），**数据面走原生 HTTP**（`/api/upload/*`、`/api/raw/*`、`/dav`，签名令牌鉴权）。
+- 形态：**单进程单端口 `:3000`**——TanStack Start（Solid）承载页面与 SSR，Hono 作为 `/api` 子系统直挂其内；后面挂 PostgreSQL(:5432) / Redis(:6379) / 存储驱动；`apps/worker` 独立进程消费队列。
+- 两层接口面（`D3`）：**控制面走 oRPC `/api/rpc`**（类型安全），**数据面走原生 HTTP**（`/api/upload/*`、`/api/raw/*`、`/dav`，签名令牌鉴权）。
 - 依赖方向硬单向：`apps/* → packages/* → packages/config`，禁止反向。
-- 二进制路由不走 oRPC，其 OpenAPI 覆盖靠 `apps/server/src/openapi.ts` 手写 spec 片段合并。
-- 端口：web `3001`、server `3000`；不使用 Docker。
+- 二进制路由不走 oRPC，其 OpenAPI 覆盖靠 `apps/web/src/server/openapi.ts` 手写 spec 片段合并。
+- 端口：单 app `3000`；不使用 Docker。
 
 ## 1. 进程与端口拓扑
 
 ```
                           ┌────────────────────────────────────────┐
-   浏览器 ──:3001────────▶ │ apps/web   SolidStart (Vite+Nitro SSR) │
-                          └───────────────┬────────────────────────┘
-                                          │ oRPC  /rpc    （控制面）
-                                          │ HTTP  /api/upload/* /api/raw/*（二进制面）
-                                          ▼
-                          ┌────────────────────────────────────────┐
-                          │ apps/server  Hono  :3000               │
-                          │  ├─ /rpc            oRPC 全量过程       │
-                          │  ├─ /api/upload/*   分片上传/秒传        │
-                          │  ├─ /api/raw/*      流式下载/预览(签名)  │
-                          │  ├─ /dav            WebDAV             │
-                          │  └─ /api-reference  OpenAPI 文档        │
+   浏览器 ──:3000────────▶ │ 单 app  :3000                          │
+                          │ TanStack Start (Solid) + Vite（SSR）   │
+                          │  ├─ 页面路由（SSR 出 html 壳）          │
+                          │  └─ Hono /api 子系统（直挂，不改 path） │
+                          │      ├─ /api/rpc          oRPC 全量过程 │
+                          │      ├─ /api/upload/*     分片上传/秒传  │
+                          │      ├─ /api/raw/*        流式下载/预览  │
+                          │      ├─ /dav              WebDAV        │
+                          │      └─ /api/reference    OpenAPI 文档  │
                           └───┬──────────┬──────────┬──────────────┘
                               │          │          │
                      PostgreSQL│    Redis │          │ 存储驱动
@@ -65,8 +62,8 @@
 ```
 MyDISK/
 ├── apps/
-│   ├── web/                    # SolidStart 前端（README + docs/ui.md = A5）
-│   └── server/                 # Hono + oRPC 装配（README）
+│   ├── web/                    # TanStack Start 单 app（README + docs/ui.md = A5）
+│   │   └── src/server/         # Hono + oRPC 装配，直挂为 `/api` 子系统（README）
 │   └── worker/                 # ⬜ P3 新增：BullMQ Worker 独立进程
 ├── packages/
 │   ├── api/                    # oRPC 路由集合（README + docs/routers.md = A3）
@@ -86,13 +83,12 @@ MyDISK/
 ### 2.2 依赖方向（严格单向，禁止反向引用）
 
 ```
-web ─┐
-     ├─▶ api ──▶ auth ──▶ db
-server┤   ├────▶ storage
-     │   ├────▶ queue
-     │   └────▶ mail
-worker──────▶ queue + storage + db + mail
-cli ────────▶ db + auth + storage（不依赖 web/server）
+web ───▶ api ──▶ auth ──▶ db
+          ├────▶ storage
+          ├────▶ queue
+          └────▶ mail
+worker───▶ queue + storage + db + mail
+cli ─────▶ db + auth + storage（不依赖 web）
 ```
 
 硬约束：`packages/*` **不得** import `apps/*`。违反即在评审中打回。
@@ -134,7 +130,7 @@ cli ────────▶ db + auth + storage（不依赖 web/server）
 ./cli.sh smtp:set|test        # ⬜ P4
 ./cli.sh storage:add|list|default|sync   # ⬜ P3
 ./cli.sh db:push|studio|generate
-./cli.sh serve                # 启动 web+server（turbo run dev）
+./cli.sh serve                # 启动单 app（turbo run dev）
 ./cli.sh worker               # ⬜ P3
 ./cli.sh openapi              # 导出 openapi.json
 ```
@@ -157,30 +153,21 @@ cli ────────▶ db + auth + storage（不依赖 web/server）
 
 ## 6. 环境变量清单
 
-### `apps/server/.env.schema`
+### `apps/web/.env.schema`（唯一来源）
 
-| 变量                    | 必填 | 说明                                                      |
-| ----------------------- | ---- | --------------------------------------------------------- |
-| `NODE_ENV`              | ✓    | development / production / test                           |
-| `PORT`                  |      | 默认 3000                                                 |
-| `SERVER_URL`            | ✓    | 服务端对外地址                                            |
-| `CORS_ORIGIN`           | ✓    | 前端地址                                                  |
-| `DATABASE_URL`          | ✓    | 默认 `postgres://postgres:123456@127.0.0.1:5432/pstorage` |
-| `REDIS_URL`             | ✓    | 默认 `redis://127.0.0.1:6379`                             |
-| `BETTER_AUTH_SECRET`    | ✓    | ≥32 位                                                    |
-| `BETTER_AUTH_URL`       | ✓    |                                                           |
-| `ENCRYPTION_KEY`        | ✓    | 32 字节，用于加密存储密钥与 SMTP 密码（`A4`）             |
-| `STORAGE_ROOT`          |      | 本地存储根，默认 `<root>/storage`                         |
-| `UPLOAD_CHUNK_SIZE`     |      | 默认 8388608（8MB）                                       |
-| `API_REFERENCE_ENABLED` |      | 默认 true；生产可关 `/api-reference` 与 `/openapi.json`   |
-| `WEBDAV_ENABLED`        |      | 默认 true                                                 |
-
-### `apps/web/.env.schema`
-
-| 变量              | 说明                         |
-| ----------------- | ---------------------------- |
-| `VITE_SERVER_URL` | 默认 `http://localhost:3000` |
-| `NODE_ENV`        |                              |
+| 变量                    | 必填 | 说明                                                        |
+| ----------------------- | ---- | ----------------------------------------------------------- |
+| `NODE_ENV`              | ✓    | development / production / test                             |
+| `DATABASE_URL`          | ✓    | 默认 `postgres://postgres:123456@127.0.0.1:5432/pstorage`   |
+| `REDIS_URL`             | ✓    | 默认 `redis://127.0.0.1:6379`                               |
+| `BETTER_AUTH_SECRET`    | ✓    | ≥32 位                                                      |
+| `BETTER_AUTH_URL`       | ✓    | 指向单 app，默认 `http://localhost:3000`                    |
+| `ENCRYPTION_KEY`        | ✓    | 32 字节，用于加密存储密钥与 SMTP 密码（`A4`）               |
+| `STORAGE_ROOT`          |      | 本地存储根，默认 `<root>/storage`                           |
+| `UPLOAD_CHUNK_SIZE`     |      | 默认 8388608（8MB）                                         |
+| `API_REFERENCE_ENABLED` |      | 默认 true；生产可关 `/api/reference` 与 `/api/openapi.json` |
+| `WEBDAV_ENABLED`        |      | 默认 true                                                   |
+| `PORT`                  |      | 运行期读取，默认 3000（单端口）                             |
 
 > 改 schema 后必须 `bun run env:generate`（Varlock 生成 `src/env.ts`）。
 
@@ -194,13 +181,13 @@ cli ────────▶ db + auth + storage（不依赖 web/server）
 6. 全量敏感操作写 `audit_log`（含 IP/UA）；
 7. 登录失败限流（Redis 计数，15 分钟 10 次锁定）；
 8. 会话 Cookie：`httpOnly + secure + sameSite`（生产 `none/secure`，开发 `lax`）；
-9. 生产可用 `API_REFERENCE_ENABLED=false` 关闭 `/api-reference` 与 `/openapi.json`。
+9. 生产可用 `API_REFERENCE_ENABLED=false` 关闭 `/api/reference` 与 `/api/openapi.json`。
 
 ## 8. 已识别风险与应对
 
 | 风险                                  | 影响               | 应对                                                                |
 | ------------------------------------- | ------------------ | ------------------------------------------------------------------- |
-| Solid 2 / Router / Nitro 全为 RC/beta | API 可能变动       | 锁定 `overrides` 版本；关键用法先写最小验证页                       |
+| Solid 2 / TanStack Start / Router 全为 RC/beta | API 可能变动       | 锁定 `overrides` 版本；关键用法先写最小验证页                       |
 | 刷新后续传受浏览器限制                | 需求核心项         | 三级方案（File System Access → IndexedDB Blob → 重选文件）；见 `X1` |
 | 大文件分片走 oRPC 性能差              | 上传吞吐           | 二进制面强制走原生 Hono 路由（`D3`）                                |
 | 二进制路由脱离 oRPC                   | OpenAPI 文档不完整 | 手写 spec 片段与自动生成结果合并，CI 校验「接口数 = 文档路径数」    |

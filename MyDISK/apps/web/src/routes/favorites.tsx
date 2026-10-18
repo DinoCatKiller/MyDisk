@@ -1,7 +1,13 @@
+import { createFileRoute } from "@tanstack/solid-router";
+
 import { Protected } from "~/components/layout/protected";
 import { FeaturePlaceholder } from "~/components/layout/placeholder";
 
-export default function FavoritesPage() {
+export const Route = createFileRoute("/favorites")({
+  component: FavoritesPage,
+});
+
+function FavoritesPage() {
   return (
     <Protected title="收藏" description="标记为收藏的文件与文件夹">
       <FeaturePlaceholder

@@ -27,7 +27,7 @@
 
 1. **两个实例而非一个开关**：`auth`（`allowSignUp:false`，运行时）与 `adminAuth`（`allowSignUp:true`，仅供创始人建号）。用「实例能力」区分谁能建号，比全局布尔更难被误开。
 2. **扩展字段一律 `input:false`**：`role`/`status` 等不允许客户端在注册或更新时注入，否则等于开放提权。
-3. **生产 Cookie 必须 `sameSite:"none"`+`secure`**：前端 `:3001` 与 server `:3000` 跨端口，`lax` 场景下会话 Cookie 会被拦掉。
+3. **Cookie 属性按环境分流**：生产 `sameSite:"none"`+`secure`、开发 `lax`；单 app 同源后（`D8`）跨端口不再存在，`lax` 已足够，此处保持不动以免影响已在生产签发的会话。
 
 ## 相关
 

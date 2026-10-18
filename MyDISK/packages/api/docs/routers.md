@@ -11,10 +11,10 @@
 
 ## TL;DR
 
-- 所有 oRPC 过程带 `.route()`，同一份实现同时具备 **RPC（`/rpc`）与 REST（OpenAPI 3.1）** 两种语义（`D5`）。
+- 所有 oRPC 过程带 `.route()`，同一份实现同时具备 **RPC（`/api/rpc`）与 REST（OpenAPI 3.1）** 两种语义（`D5`）。
 - 权限四档：`publicProcedure` / `protectedProcedure`（任意管理员）/ `founderProcedure`（仅创始人）/ `shareProcedure`（凭 `shareToken` + 密码）。
 - 统一错误码枚举（§1.2）、统一分页返回 `{ items, total, page, pageSize }`（§1.3）。
-- **二进制面不走 oRPC**（`D3`）：分片上传 / 取流见 §7，其 OpenAPI 覆盖靠 `apps/server/src/openapi.ts` 手写 spec 合并（§11.4）。
+- **二进制面不走 oRPC**（`D3`）：分片上传 / 取流见 §7，其 OpenAPI 覆盖靠 `apps/web/src/server/openapi.ts` 手写 spec 合并（§11.4）。
 - 本文件是接口清单**唯一事实源**；实现的 router 见 `packages/api/src/routers/`。
 
 ---
@@ -190,20 +190,20 @@ const sort = z.object({
 | `/api/upload/chunk`               | POST        | session cookie 或短时签名           | `?uploadId&index`，body 为原始分片流；支持并发，返回 `{ received, etag }` |
 | `/api/raw/:nodeId`                | GET/HEAD    | 签名 token（`?token=`）             | 支持 `Range` → 206；`dl=1` 触发下载文件名；预览用 `inline=1`              |
 | `/api/raw/share/:shareId/:nodeId` | GET         | 分享签名                            | 分享场景取流                                                              |
-| `/api-reference`                  | GET         | —                                   | oRPC 交互式文档（Scalar 主题）                                            |
+| `/api/reference`                  | GET         | —                                   | oRPC 交互式文档（Scalar 主题）                                            |
 | `/dav/*`                          | WebDAV 方法 | Basic Auth（管理员或 webdav_token） | 见 `A6` §8                                                                |
 
 > 签名 token（`packages/api/src/lib/raw-token.ts`）：`HMAC-SHA256` 签名的 `base64url(payload).base64url(sig)`，TTL 900 秒，
 > payload 含 `{ nodeId, userId, exp }`（结构由 `schemas/raw.ts` 的 `rawTokenPayloadSchema` 校验）；服务端每次校验签名、过期与 `nodeId` 归属（防止令牌被挪用）。
 > 前端经 `preview.url` 取签名地址；跨域 `<img>/<video>` 无法带 Cookie，故必须用签名 URL 而非会话 Cookie。
 >
-> **P2 实现状态**：`/api/upload/chunk`（`apps/server/src/routes/upload-chunk.ts`，session Cookie 鉴权 + 驱动 `multipart.uploadPart`）
-> 与 `/api/raw/:nodeId`（`apps/server/src/routes/raw.ts`，签名 token 或 Cookie 双鉴权，Range → 206/416）已落地；
+> **P2 实现状态**：`/api/upload/chunk`（`apps/web/src/server/routes/upload-chunk.ts`，session Cookie 鉴权 + 驱动 `multipart.uploadPart`）
+> 与 `/api/raw/:nodeId`（`apps/web/src/server/routes/raw.ts`，签名 token 或 Cookie 双鉴权，Range → 206/416）已落地；
 > `/api/raw/share/*` 与 `/dav/*` 属 P3/P4。
 >
 > 二进制面的参数（path / query / `Range` 头）同样由 Zod 校验，schema 与 oRPC 侧在**同一处**（`packages/api/src/schemas/`）：
 > `raw.ts` 提供 `rawNodeIdSchema` / `rawQuerySchema` / `rawTokenPayloadSchema` / `byteRangeHeaderSchema(size)`，
-> `upload.ts` 提供 `uploadChunkQuery`；`apps/server` 直接 import 复用，不再手写 `Number()` 解析。
+> `upload.ts` 提供 `uploadChunkQuery`；`apps/web/src/server` 直接 import 复用，不再手写 `Number()` 解析。
 > `nodeId` / `uploadId` 校验为 uuid，可挡住会打到 PG 的非法 id（否则 PG 报 `invalid input syntax for uuid` → 500）。
 
 ---
@@ -280,16 +280,16 @@ export const list = protectedProcedure
   .handler(/* ... */);
 ```
 
-- 前端：`/rpc`（类型安全，主用）
-- 外部系统/文档：REST 路径 + `/api-reference`
+- 前端：`/api/rpc`（类型安全，主用）
+- 外部系统/文档：REST 路径 + `/api/reference`
 
 ### 11.2 端点
 
-| 端点             | 方法 | 鉴权            | 说明                                              |
-| ---------------- | ---- | --------------- | ------------------------------------------------- |
-| `/rpc`           | POST | cookie / bearer | oRPC RPC 入口                                     |
-| `/api-reference` | GET  | 无（生产可关）  | `OpenAPIReferencePlugin`（Scalar 主题）交互式文档 |
-| `/openapi.json`  | GET  | 无（生产可关）  | `OpenAPIGenerator` 产出，Redis 缓存 5 分钟        |
+| 端点                | 方法 | 鉴权            | 说明                                              |
+| ------------------- | ---- | --------------- | ------------------------------------------------- |
+| `/api/rpc`          | POST | cookie / bearer | oRPC RPC 入口                                     |
+| `/api/reference`    | GET  | 无（生产可关）  | `OpenAPIReferencePlugin`（Scalar 主题）交互式文档 |
+| `/api/openapi.json` | GET  | 无（生产可关）  | `OpenAPIGenerator` 产出，Redis 缓存 5 分钟        |
 
 ### 11.3 标签与路径规范
 
@@ -308,7 +308,7 @@ export const list = protectedProcedure
 
 ### 11.4 二进制接口（手写 spec 补充）
 
-`/api/upload/chunk`、`/api/raw/{nodeId}`、`/dav/*` 不经过 oRPC，无法自动推导 schema。在 `apps/server/src/openapi.ts` 中维护手写片段并与自动生成结果合并：
+`/api/upload/chunk`、`/api/raw/{nodeId}`、`/dav/*` 不经过 oRPC，无法自动推导 schema。在 `apps/web/src/server/openapi.ts` 中维护手写片段并与自动生成结果合并：
 
 ```ts
 const rawPaths = {
@@ -330,7 +330,7 @@ const rawPaths = {
 ### 11.5 约定与校验
 
 - 所有 `input`/`output` 必须 Zod 定义（否则无法转 JSON Schema）；**所有 schema 集中在 `packages/api/src/schemas/`**（按 router 分文件，`common.ts` 放分页 / 排序 / `queryIntSchema` / `ok`），router 只声明 `.input()` / `.output()`；
-  - 非 oRPC 的**二进制面参数 schema 也放这里**（`raw.ts` / `upload.ts`），由 `apps/server` 复用，避免同一参数两套解析；
+  - 非 oRPC 的**二进制面参数 schema 也放这里**（`raw.ts` / `upload.ts`），由 `apps/web/src/server` 复用，避免同一参数两套解析；
 - 每个操作必填 `summary` + `tags`；
 - 错误统一 `components.schemas.ErrorResponse`（含 `code` 字段，取值见 §1.2）；
 - CI 校验：spec 中的 path 数 = oRPC 过程数 + 手写补充路径数，防止接口漏文档。

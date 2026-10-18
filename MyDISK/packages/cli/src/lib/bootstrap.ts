@@ -23,7 +23,6 @@ export function makeAuth(env: CliEnv, db: Database, allowSignUp = false): Auth {
       NODE_ENV: env.NODE_ENV,
       BETTER_AUTH_URL: env.BETTER_AUTH_URL,
       BETTER_AUTH_SECRET: env.BETTER_AUTH_SECRET,
-      CORS_ORIGIN: env.CORS_ORIGIN,
     },
     db,
     { allowSignUp },

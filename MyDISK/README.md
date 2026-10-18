@@ -58,8 +58,8 @@ MyDISK/
 │   ├── index/meta.md        文档规范与任务路由（M1）
 │   └── decisions/           ADR（只增不改）
 ├── apps/
-│   ├── web/                 SolidStart 前端（README + docs/ui.md = A5）
-│   ├── server/              Hono + oRPC 装配（README）
+│   ├── web/                 TanStack Start 单 app（README + docs/ui.md = A5）
+│   │   └── src/server/      Hono + oRPC 装配，挂为 `/api` 子系统
 │   └── worker/              BullMQ Worker（⬜ P3 新增）
 └── packages/
     ├── api/                 oRPC 路由集合（README + docs/routers.md = A3）
@@ -74,13 +74,13 @@ MyDISK/
 
 ## 技术栈速览
 
-Bun 1.3.14 · SolidJS 2 + Vite + Nitro（SSR）· Hono 4 · oRPC 1.15 · Zod 4 · Drizzle + PostgreSQL（库 `pstorage`）· Redis + BullMQ · Better-Auth。细节与版本基线见 `G1`、`D1`。
+Bun 1.3.14 · SolidJS 2 + Vite + TanStack Start（SSR）· Hono 4 · oRPC 1.15 · Zod 4 · Drizzle + PostgreSQL（库 `pstorage`）· Redis + BullMQ · Better-Auth。细节与版本基线见 `G1`、`D1`。
 
 ## 快速验证
 
 ```bash
 bun install                 # 首次安装（Varlock 生成 env.ts）
-bun run dev                 # 启动 web(:3001) + server(:3000)
+bun run dev                 # 启动单 app(:3000)
 bun run check               # Oxlint + Oxfmt
 bun run check-types         # 全仓 TS 类型检查
 bun run db:push             # 推送 schema 到数据库

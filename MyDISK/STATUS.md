@@ -4,7 +4,7 @@
 | ------ | ------------------------------------------ |
 | ID     | `S1`                                       |
 | 类型   | 状态 · **概览**                            |
-| 更新   | 2026-10-17（迁移 S0 通过，进 S1；P2 挂起） |
+| 更新   | 2026-10-18（迁移 S1–S3 通过，进 S4；P2 待回归） |
 | 何时读 | **每次开工第一眼**，5 秒确认「现在做什么」 |
 | 规模   | ~0.5k token                                |
 
@@ -13,19 +13,19 @@
 
 ## 当前任务
 
-**架构迁移（`D8` / `GUI`）** ｜ 状态：🚧 **S1 单 app 骨架进行中**（S0 已通过）
+**架构迁移（`D8` / `GUI`）** ｜ 状态：🚧 **S4 文档批更 + P2 全量回归**（S1–S3 已通过）
 
 一句话：把前端由 `@solidjs/router` + Nitro 换成 `@tanstack/solid-router` + `@tanstack/solid-start`，两个进程合并为**单 app**，Hono 降为 `/api/$` 子系统（oRPC 保留）；动机是拿到 loader / SSR 数据模型。
 
-| 段  | 事项                                                                                                                             | 门槛                                                                               | 细节               |
-| --- | -------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | ------------------ |
-| S0  | ✅ 5/5 通过（依赖组合可装可跑 / Varlock 与 Start+Tailwind 共存 / Hono `ANY` catch-all / loader SSR 出数 / `@rsbuild/core` 可选） | 全过才进 S1                                                                        | `GUI` §7 S0 结论   |
-| S1  | 单 app 骨架：`apps/server/src/**` 并入 `apps/web/src/server/`、换 vite 插件、合并 `.env.schema`、端口收敛、自建 prod 入口        | `bun run build` 能起，`/` 返回 SSR 页面                                            | `GUI` §2 · §5 · §6 |
-| S2  | 路由与页面迁移（13 个路由文件 + `App.tsx`/`Document.tsx` 拆入 `__root.tsx` + 页面改 `loader`）                                   | 每页 `check-types` + 手工打开                                                      | `GUI` §3           |
-| S3  | Hono 挂载 + 内部路径重排（`/rpc`→`/api/rpc` 等 3 处 URL 变更）                                                                   | `/api/reference` 能开，`/api/rpc` 能调通                                           | `GUI` §4           |
-| S4  | 文档同批更新 + P2 全量回归                                                                                                       | `check-types`/`lint`/`build` 全绿 + 上传/续传/刷新恢复/目录树/移动/删除/回收站全过 | `GUI` §7 S4        |
+| 段  | 事项                                                                                                                    | 门槛                                                                               | 细节                  |
+| --- | ----------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | --------------------- |
+| S0  | ✅ 5/5 通过（依赖组合可装可跑 / Varlock 与 Start+Tailwind 共存 / Hono `ANY` catch-all / loader SSR 出数 / `@rsbuild/core` 可选） | 全过才进 S1                                                                        | `GUI` §7 S0 结论      |
+| S1  | ✅ 单 app 骨架：`apps/server/src/**` 并入 `apps/web/src/server/`、换 vite 插件、合并 `.env.schema`、端口收敛、自建 prod 入口 | `bun run build` 能起，`/` 返回 SSR 页面                                            | `GUI` §7 S1 结论      |
+| S2  | ✅ 路由与页面迁移（13 个路由文件 + `App.tsx`/`Document.tsx` 拆入 `__root.tsx`）                                          | 每页 `check-types` + 手工打开                                                      | `GUI` §3              |
+| S3  | ✅ Hono 挂载 + 对外 URL 重排（`/rpc`→`/api/rpc` 等 3 处变更）                                                           | `/api/rpc` 能调通（`/api/reference` 受既存 bug 阻塞，见下）                        | `GUI` §4              |
+| S4  | 🚧 文档同批更新 + P2 全量回归                                                                                            | `check-types`/`lint`/`build` 全绿 + 上传/续传/刷新恢复/目录树/移动/删除/回收站全过 | `GUI` §7 S4           |
 
-**S1 需先落地的一条硬事实**（S0 实测）：`@solidjs/web` 在本项目会被装成双份（项目钉 rc.7、router 依赖 rc.15）；S1 抬 `solid-js` + `@solidjs/web` 到 `2.0.0-rc.15` 并同步 `overrides`，服务端取 env 只能走 `src/server/env.server.ts`（详见 `GUI` §6 与 §7 S0 结论）。
+**S3 遗留（非本次迁移引入）**：`/api/openapi.json` 返回 500 —— `@orpc/openapi` 生成 `file.move` 时报「compact 输入 + 动态路径参数，输入 schema 必须是包含全部动态参数的 required object」（`A3` 的契约问题，与单 app 无关）。
 
 ## 挂起（迁移期间停手）
 

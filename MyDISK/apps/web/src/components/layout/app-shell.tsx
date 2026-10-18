@@ -1,5 +1,5 @@
 import type { JSX } from "@solidjs/web";
-import { useLocation, useNavigate } from "@solidjs/router";
+import { useLocation, useNavigate } from "@tanstack/solid-router";
 import { For, Show, createSignal, onCleanup, onSettled } from "solid-js";
 
 import {
@@ -66,7 +66,7 @@ export function AppShell(props: AppShellProps) {
   };
 
   const isActive = (href: string) =>
-    location.pathname === href || location.pathname.startsWith(`${href}/`);
+    location().pathname === href || location().pathname.startsWith(`${href}/`);
 
   const initial = () => (sessionUser()?.name ?? "?").slice(0, 1);
 
@@ -79,7 +79,7 @@ export function AppShell(props: AppShellProps) {
   const handleSignOut = async () => {
     setMenuOpen(false);
     await signOut();
-    navigate("/login", { replace: true });
+    navigate({ to: "/login", replace: true });
   };
 
   return (
@@ -154,7 +154,7 @@ export function AppShell(props: AppShellProps) {
                   class={styles.menuItem}
                   onClick={() => {
                     setMenuOpen(false);
-                    navigate("/settings/security");
+                    navigate({ to: "/settings/security" });
                   }}
                 >
                   <ShieldCheckIcon size={16} />

@@ -1,7 +1,13 @@
+import { createFileRoute } from "@tanstack/solid-router";
+
 import { Protected } from "~/components/layout/protected";
 import { FeaturePlaceholder } from "~/components/layout/placeholder";
 
-export default function TrashPage() {
+export const Route = createFileRoute("/trash")({
+  component: TrashPage,
+});
+
+function TrashPage() {
   return (
     <Protected title="回收站" description="已删除的文件与文件夹">
       <FeaturePlaceholder

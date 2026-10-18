@@ -11,7 +11,7 @@
 
 ## TL;DR
 
-- 路由采用文件路由（`@solidjs/router/fs`），页面清单见 §1；`/files/[...path]` 是主界面。
+- 路由采用 TanStack Router 文件式路由，页面清单见 §1；`/files/$`（`_splat` 参数）是主界面。
 - 视觉方向：AList / Cloudreve 那种**干净、留白充足、列表信息密度高**的文件管理器观感（只借鉴布局与节奏，不复制其视觉资产）。
 - 样式分工：**Tailwind v4（`@theme` 定义令牌）做原子微调，CSS Modules 管组件结构与复杂布局**；禁止在 JSX 里堆超长 class 串。
 - 上传队列状态机见 `A6` §2.3；上传交互（暂停/停止/续传）细节属 `A6`。
@@ -24,7 +24,7 @@
 | `/login`                 | 自研登录（邮箱+密码；忘记密码入口）                           | ✅ P1                                              |
 | `/forgot-password`       | 输入邮箱 → 队列发重置邮件                                     | ⬜ P4                                              |
 | `/reset-password?token=` | 设置新密码                                                    | ⬜ P4                                              |
-| `/files/[...path]`       | 主界面：左侧连接+目录树，右侧文件区，顶部工具栏，底部上传抽屉 | ✅ P2（path 段为节点 id，见 `apps/web/README.md`） |
+| `/files/$`（`_splat`）   | 主界面：左侧连接+目录树，右侧文件区，顶部工具栏，底部上传抽屉 | ✅ P2（path 段为节点 id，见 `apps/web/README.md`） |
 | `/trash`                 | 回收站（还原 / 彻底删除 / 清空）                              | 🚧 骨架                                            |
 | `/favorites`             | 收藏                                                          | 🚧 骨架                                            |
 | `/shares`                | 分享管理                                                      | 🚧 骨架                                            |

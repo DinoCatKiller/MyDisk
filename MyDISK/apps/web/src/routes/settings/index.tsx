@@ -1,7 +1,13 @@
+import { createFileRoute } from "@tanstack/solid-router";
+
 import { Protected } from "~/components/layout/protected";
 import { FeaturePlaceholder } from "~/components/layout/placeholder";
 
-export default function SettingsPage() {
+export const Route = createFileRoute("/settings/")({
+  component: SettingsPage,
+});
+
+function SettingsPage() {
   return (
     <Protected title="系统设置" description="站点、上传、AI 与邮件等全局配置">
       <FeaturePlaceholder

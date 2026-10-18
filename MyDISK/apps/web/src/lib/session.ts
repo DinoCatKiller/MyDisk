@@ -1,4 +1,4 @@
-import { useNavigate } from "@solidjs/router";
+import { useNavigate } from "@tanstack/solid-router";
 import { createSignal, onSettled } from "solid-js";
 
 import { client } from "~/utils/orpc";
@@ -74,7 +74,7 @@ export function useRequireAuth(): void {
   onSettled(() => {
     void ensureSession().then((current) => {
       if (!current) {
-        navigate("/login", { replace: true });
+        navigate({ to: "/login", replace: true });
       }
     });
   });

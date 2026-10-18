@@ -63,8 +63,7 @@
 
 | ID  | 标题                                          | 路径                                                       | 何时读                          | 规模  | 状态 |
 | --- | --------------------------------------------- | ---------------------------------------------------------- | ------------------------------- | ----- | ---- |
-| —   | `server` 门面：Hono 装配 / 二进制面 / OpenAPI | [`apps/server/README.md`](apps/server/README.md)           | 改路由装配、OpenAPI、上传下载流 | ~0.9k | ✅   |
-| —   | `web` 门面：SolidStart 前端                   | [`apps/web/README.md`](apps/web/README.md)                 | 改前端页面 / 组件 / 样式        | ~0.9k | ✅   |
+| —   | `web` 门面：TanStack Start 单 app（页面路由 + Hono `/api` 子系统装配） | [`apps/web/README.md`](apps/web/README.md)                 | 改前端页面 / 组件 / 样式、改 API 装配与二进制面 | ~1.2k | ✅   |
 | —   | `@MyDISK/api` 门面：oRPC 路由集合             | [`packages/api/README.md`](packages/api/README.md)         | 加接口、改权限中间件            | ~0.9k | ✅   |
 | —   | `@MyDISK/auth` 门面：Better-Auth 封装         | [`packages/auth/README.md`](packages/auth/README.md)       | 改登录 / 会话 / 管理员体系      | ~0.9k | ✅   |
 | —   | `@MyDISK/db` 门面：Drizzle schema 与客户端    | [`packages/db/README.md`](packages/db/README.md)           | 改表结构、迁移、连接            | ~0.9k | ✅   |
@@ -101,7 +100,7 @@
 
 ## 4. 硬约束（始终生效）
 
-1. **技术栈已定**（见 `D1`/`D2`/`D8`）：Bun 1.3.14 · SolidJS 2 + Vite + **TanStack Start**（`D8` 已接受，迁移中；取代 `D2` 的 Nitro 载体）· Hono 4 · oRPC 1.15 · Drizzle + PostgreSQL `pstorage` · Redis + BullMQ · Better-Auth。任何替代方案的引入需先写 ADR。
+1. **技术栈已定**（见 `D1`/`D2`/`D8`）：Bun 1.3.14 · SolidJS 2 + Vite + **TanStack Start**（`D8` 已落地：单 app 单端口，Hono 降为 `/api` 子系统；取代 `D2` 的 Nitro 载体）· Hono 4 · oRPC 1.15 · Drizzle + PostgreSQL `pstorage` · Redis + BullMQ · Better-Auth。任何替代方案的引入需先写 ADR。
 2. **依赖方向单向**：`apps/* → packages/* → packages/config`，只能向下，禁止反向（`packages/*` 不得 import `apps/*`）。
 3. **二进制面不走 oRPC**（`D3`）：分片上传 / 流式下载 / 预览取流走 Hono 原生路由，带签名令牌鉴权。
 4. **一个结论只有一个家**：其它文档只许用 ID 引用，不许复制内容。

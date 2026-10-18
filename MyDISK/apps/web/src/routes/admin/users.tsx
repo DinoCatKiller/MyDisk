@@ -1,3 +1,4 @@
+import { createFileRoute } from "@tanstack/solid-router";
 import { For, Show, createSignal, onSettled } from "solid-js";
 
 import { Protected } from "~/components/layout/protected";
@@ -28,7 +29,11 @@ function formatDate(value: Date | string | null | undefined): string {
   return Number.isNaN(date.getTime()) ? "—" : date.toLocaleString("zh-CN", { hour12: false });
 }
 
-export default function AdminUsersPage() {
+export const Route = createFileRoute("/admin/users")({
+  component: AdminUsersPage,
+});
+
+function AdminUsersPage() {
   const [admins, setAdmins] = createSignal<AdminRow[]>([]);
   const [loading, setLoading] = createSignal(true);
   const [error, setError] = createSignal("");

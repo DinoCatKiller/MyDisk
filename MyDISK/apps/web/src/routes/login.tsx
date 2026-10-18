@@ -1,5 +1,4 @@
-import { Title } from "@solidjs/meta";
-import { useNavigate } from "@solidjs/router";
+import { createFileRoute, useNavigate } from "@tanstack/solid-router";
 import { For, Show, createSignal, onSettled } from "solid-js";
 
 import { Alert } from "~/components/ui/alert";
@@ -40,7 +39,12 @@ const FEATURES = [
   { icon: <KeyRoundIcon size={14} />, text: "创始人 / 管理员分级权限与审计" },
 ];
 
-export default function LoginPage() {
+export const Route = createFileRoute("/login")({
+  head: () => ({ meta: [{ title: "登录 · MyDisk" }] }),
+  component: LoginPage,
+});
+
+function LoginPage() {
   const navigate = useNavigate();
   const [email, setEmail] = createSignal("");
   const [password, setPassword] = createSignal("");
@@ -50,7 +54,7 @@ export default function LoginPage() {
   onSettled(() => {
     void ensureSession().then((current) => {
       if (current) {
-        navigate("/files", { replace: true });
+        navigate({ to: "/files", replace: true });
       }
     });
   });
@@ -74,9 +78,11 @@ export default function LoginPage() {
         password: password(),
         rememberMe: true,
       });
-      navigate(result.mustChangePassword ? "/settings/security?force=1" : "/files", {
-        replace: true,
-      });
+      navigate(
+        result.mustChangePassword
+          ? { to: "/settings/security", search: { force: true }, replace: true }
+          : { to: "/files", replace: true },
+      );
     } catch (submitError) {
       setError(translateError(submitError));
     } finally {
@@ -86,8 +92,6 @@ export default function LoginPage() {
 
   return (
     <div class={styles.page}>
-      <Title>登录 · MyDisk</Title>
-
       <aside class={styles.aside}>
         <div class={styles.brand}>
           <span class={styles.brandMark}>M</span>

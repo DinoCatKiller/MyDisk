@@ -1,7 +1,13 @@
+import { createFileRoute } from "@tanstack/solid-router";
+
 import { Protected } from "~/components/layout/protected";
 import { FeaturePlaceholder } from "~/components/layout/placeholder";
 
-export default function SharesPage() {
+export const Route = createFileRoute("/shares")({
+  component: SharesPage,
+});
+
+function SharesPage() {
   return (
     <Protected title="分享" description="已创建的分享链接">
       <FeaturePlaceholder

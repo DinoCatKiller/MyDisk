@@ -1,4 +1,4 @@
-import { useNavigate, useParams } from "@solidjs/router";
+import { useNavigate } from "@tanstack/solid-router";
 import { Show, createEffect, createSignal, onSettled } from "solid-js";
 
 import type { FileRouterNode } from "@MyDISK/api/routers/file";
@@ -14,15 +14,20 @@ import { sessionUser } from "~/lib/session";
 import { enqueueCandidates, initUploadStore, type UploadCandidate } from "~/lib/upload/store";
 import { client } from "~/utils/orpc";
 
-import styles from "./page.module.css";
+import styles from "./files-browser.module.css";
 
 function messageOf(error: unknown, fallback: string): string {
   return error instanceof Error ? error.message : fallback;
 }
 
-export default function FilesPage() {
+export type FilesBrowserProps = {
+  /** 路由 splat 段：`/files/<id>/<id>/...`，裸 `/files` 时为空。 */
+  path?: string;
+};
+
+/** `/files` 与 `/files/<id>/...` 共用的文件浏览器主体。 */
+export function FilesBrowser(props: FilesBrowserProps) {
   const navigate = useNavigate();
-  const params = useParams<{ path?: string }>();
 
   const [items, setItems] = createSignal<FileRouterNode[]>([]);
   const [path, setPath] = createSignal<FileRouterNode[]>([]);
@@ -36,7 +41,7 @@ export default function FilesPage() {
 
   /** 路由段即节点 ID：取最后一段作为当前目录（裸 `/files` 为空）。 */
   const currentId = () => {
-    const parts = (params.path ?? "").split("/").filter(Boolean);
+    const parts = (props.path ?? "").split("/").filter(Boolean);
     return parts.length > 0 ? (parts[parts.length - 1] ?? null) : null;
   };
 
@@ -83,14 +88,14 @@ export default function FilesPage() {
 
   onSettled(() => {
     if (sessionUser()?.mustChangePassword) {
-      navigate("/settings/security?force=1");
+      navigate({ to: "/settings/security", search: { force: true } });
       return;
     }
     void initUploadStore();
   });
 
   const openFolder = (node: FileRouterNode) => {
-    navigate(`/files/${node.id}`);
+    navigate({ to: "/files/$", params: { _splat: node.id } });
   };
 
   const download = (node: FileRouterNode) => {

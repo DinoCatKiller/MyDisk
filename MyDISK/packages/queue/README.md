@@ -5,7 +5,7 @@
 | 状态   | 🚧 骨架（P0；worker 未落地，属 P3）                                                                                                                   |
 | 边界   | 负责队列名、Redis 连接、默认任务选项、任务载荷类型；**不含** worker 消费与任务执行逻辑（`apps/worker` P3，⬜）、不含队列的并发/调度规格（在 `A1` §4） |
 | 上游   | `bullmq`、`ioredis`                                                                                                                                   |
-| 下游   | `@MyDISK/api`（未来入队）、`apps/server`、`apps/worker`（P3，⬜）                                                                                     |
+| 下游   | `@MyDISK/api`（未来入队）、`apps/web`（`src/server` 装配）、`apps/worker`（P3，⬜）                                                                    |
 | 何时读 | 加队列、worker 任务                                                                                                                                   |
 
 ## 这个 crate 是什么

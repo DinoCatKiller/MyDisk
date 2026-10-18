@@ -1,7 +1,13 @@
+import { createFileRoute } from "@tanstack/solid-router";
+
 import { Protected } from "~/components/layout/protected";
 import { FeaturePlaceholder } from "~/components/layout/placeholder";
 
-export default function StorageSettingsPage() {
+export const Route = createFileRoute("/settings/storage")({
+  component: StorageSettingsPage,
+});
+
+function StorageSettingsPage() {
   return (
     <Protected title="存储连接" description="本地 / 腾讯云 COS / 阿里云 OSS / S3">
       <FeaturePlaceholder

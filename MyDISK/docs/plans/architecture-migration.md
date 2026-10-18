@@ -4,8 +4,8 @@
 | ------ | ------------------------------------------------------------ |
 | ID     | `GUI`                                                        |
 | 类型   | 计划（执行前的改动面与验证门槛）                             |
-| 状态   | 进行中（`D8` 已批准；S0 旁路 spike **已通过**，当前 **S1**） |
-| 更新   | 2026-10-17                                                   |
+| 状态   | 进行中（`D8` 已批准；S0 旁路 spike **已通过**，S1–S3 **已落地**，当前 **S4**） |
+| 更新   | 2026-10-18                                                   |
 | 何时读 | 执行本迁移前；想知道「改哪些文件、按什么顺序、什么算通过」时 |
 | 规模   | ~2.5k token                                                  |
 
@@ -27,16 +27,16 @@
    浏览器 ──:3000──────▶ │ 单 app（原 apps/web + apps/server 合并）      │
                         │                                              │
                         │  TanStack Start                              │
-                        │   ├─ createFileRoute + loader + SSR          │
-                        │   ├─ QueryClientProvider（root 级，预填）    │
+                        │   ├─ createFileRoute + SSR（__root 出 html 壳）│
+                        │   ├─ __root：HeadContent / Scripts / 会话       │
                         │   └─ routes/api/$.ts  ── catch-all ──┐       │
                         │                                       ▼       │
-                        │                          Hono（API 子系统）     │
-                        │                           ├─ /rpc        oRPC   │
-                        │                           ├─ /upload/*   分片   │
-                        │                           ├─ /raw/*      取流   │
-                        │                           ├─ /reference  OpenAPI│
-                        │                           └─ /openapi.json       │
+                        │                          Hono（API 子系统，路径自带 /api）  │
+                        │                           ├─ /api/rpc        oRPC   │
+                        │                           ├─ /api/upload/*   分片   │
+                        │                           ├─ /api/raw/*      取流   │
+                        │                           ├─ /api/reference  OpenAPI│
+                        │                           └─ /api/openapi.json       │
                         └───┬──────────┬──────────┬────────────────────┘
                             │          │          │
                    PostgreSQL│    Redis │          │ 存储驱动
@@ -114,7 +114,7 @@ apps/server/                    # ❌ 整体退役（源码已并入 apps/web/sr
 | `/dav`（P4）           | `/dav`              | 不变   |
 | `/`（Hono 的问候文本） | 删除                | —      |
 
-Hono 内部路径同步重排（去掉已在 `route("/api", …)` 前缀里重复的 `/api`）：`/api/upload/chunk` → `/upload/chunk`、`/api/raw/:id` → `/raw/:id`、`/api-reference` → `/reference`。`/rpc` 与 `/openapi.json` 内部不变。
+Hono 内部路径**保持 `/api` 前缀不变**：`routes/api/$.ts` 直接 `apiApp.fetch(request)` 直挂、**不改写 path**（不用 `route("/api", …)` 前缀法），故 Hono 里注册的就是 `/api/upload/chunk`、`/api/raw/:nodeId`、`/api/reference`、`/api/rpc`、`/api/openapi.json` 的完整路径。
 
 ## 5. 环境变量与端口
 
@@ -123,7 +123,7 @@ Hono 内部路径同步重排（去掉已在 `route("/api", …)` 前缀里重�
 | `VITE_SERVER_URL`                        | ❌ 退役（同源，客户端写死 `/api/rpc`）                       |
 | `CORS_ORIGIN`                            | ❌ 退役（同源免 CORS；确认无第三方跨域消费方后再删中间件）   |
 | `PORT`                                   | 单端口，建议沿用 `3000`；web 的 `3001` 退役                  |
-| `BETTER_AUTH_URL` / `SERVER_URL`         | 指向单 app 地址，二者合一（待确认是否留两个名字）            |
+| `BETTER_AUTH_URL` / `SERVER_URL`         | 指向单 app 地址；实际保留 `BETTER_AUTH_URL`（`http://localhost:3000`），`SERVER_URL` 退役 |
 | 其余（`DATABASE_URL` / `REDIS_URL` / …） | 原样从 `apps/server/.env.schema` 迁入 `apps/web/.env.schema` |
 
 改完 schema 必须 `bun run env:generate`（Varlock）。
@@ -132,19 +132,19 @@ Hono 内部路径同步重排（去掉已在 `route("/api", …)` 前缀里重�
 
 **依赖增删（`apps/web/package.json`）**
 
-| 包                                     | 版本            | 动作                                                                                                                                                                                     |
-| -------------------------------------- | --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@tanstack/solid-router`               | `2.0.0-rc.8`    | ➕ 新增                                                                                                                                                                                  |
-| `@tanstack/solid-start`                | `2.0.0-rc.8`    | ➕ 新增（含 `.../plugin/vite`）                                                                                                                                                          |
+| 包                                     | 版本            | 动作                                                                                              |
+| -------------------------------------- | --------------- | ------------------------------------------------------------------------------------------------- |
+| `@tanstack/solid-router`               | `2.0.0-rc.8`    | ➕ 新增                                                                                            |
+| `@tanstack/solid-start`                | `2.0.0-rc.8`    | ➕ 新增（含 `.../plugin/vite`）                                                                    |
 | `solid-js` / `@solidjs/web`            | `2.0.0-rc.15`   | 🔁 抬版本（rc.7 → rc.15）：router 要求 `@solidjs/web ^2.0.0-rc.8`（内嵌 rc.15），不抬会出现双份渲染器；`overrides` 里 `@solidjs/compiler` / `@solidjs/signals` 同步抬（见 §7 S0 结论 1） |
-| `@solidjs/vite-plugin`                 | `3.0.0-next.39` | ✅ **保留**（Start 不自带 Solid JSX 编译，实测必需；仅去掉 `start` 选项）                                                                                                                |
-| `@tanstack/solid-router-ssr-query`     | 见 `S2`         | ⏸ 阶段一**不引入**                                                                                                                                                                       |
-| `@solidjs/router` `filesystem-routing` | —               | ➖ 删除                                                                                                                                                                                  |
-| `nitro`                                | —               | ➖ 删除                                                                                                                                                                                  |
-| `@tanstack/solid-query` / `query-core` | 现有            | 保留（配对问题见 `S2`）                                                                                                                                                                  |
-| `@orpc/*` `varlock` `tailwindcss`      | 现有            | 保留                                                                                                                                                                                     |
+| `@solidjs/vite-plugin`                 | `3.0.0-next.39` | ✅ **保留**（Start 不自带 Solid JSX 编译，实测必需；仅去掉 `start` 选项）                          |
+| `@tanstack/solid-router-ssr-query`     | 见 `S2`         | ⏸ 阶段一**不引入**                                                                                 |
+| `@solidjs/router` `filesystem-routing` | —               | ➖ 删除                                                                                            |
+| `nitro`                                | —               | ➖ 删除                                                                                            |
+| `@tanstack/solid-query` / `query-core` | 现有            | 保留（配对问题见 `S2`）                                                                            |
+| `@orpc/*` `varlock` `tailwindcss`      | 现有            | 保留                                                                                              |
 
-**`vite.config.ts`**：移除 `nitro/vite`、`filesystem-routing/vite`；`@solidjs/vite-plugin` 改为 `solid({ ssr: true, extensions: [".jsx", ".tsx"] })`（不再传 `start.middleware`）；接入 Start 的 vite 插件。实测可用顺序：`varlockVitePlugin({ ssrInjectMode: "auto-load" })` → `tanstackStart({})` → `solid(...)` → `tailwindcss()`。
+**`vite.config.ts`**：移除 `nitro/vite`、`filesystem-routing/vite`；`@solidjs/vite-plugin` 改为 `solid({ ssr: true, extensions: [".jsx", ".tsx"] })`（不再传 `start.middleware`）；接入 Start 的 vite 插件。实测可用顺序：`solidWebServerFunctionUrlShim()` → `varlockVitePlugin({ ssrInjectMode: "auto-load" })` → `tanstackStart({})` → `solid(...)` → `tailwindcss()`（首个 shim 的来历见 §7 S1 结论）。
 
 **scripts**：`start` 由 `node .output/server/index.mjs` 改为**自建 Node/Bun 入口** —— Start 产物 `dist/server/server.js` 只导出 fetch handler（`createServerEntry`），**不自带监听**（见 §7 S0 结论附带回填）；`dev` 仍是 `vite dev`。
 
@@ -166,13 +166,13 @@ Hono 内部路径同步重排（去掉已在 `route("/api", …)` 前缀里重�
 
 **S0 结论（2026-10-17 实测，5/5 通过；一次性工程建在仓外、验完即删）**
 
-| #   | 结论                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
-| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 1   | 装上即用：`@tanstack/solid-start@2.0.0-rc.8` + `@tanstack/solid-router@2.0.0-rc.8` + `vite@8` 可安装可运行。**但 `@solidjs/web` 会双份**（router 内嵌 rc.15，本项目钉 rc.7），S1 按 §6 抬到 `2.0.0-rc.15` 消除；实测 rc.7 也能跑且水合无报错。11 条 peer 警告来自 router 拉入的 Solid 1 线包（`@solid-primitives/refs`、`@solid-devtools/logger`、内嵌 `@solidjs/meta@0.29.4`），不阻塞。                                                                                    |
+| #   | 结论                                                                                                                                                                                                                                                                                     |
+| --- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | 装上即用：`@tanstack/solid-start@2.0.0-rc.8` + `@tanstack/solid-router@2.0.0-rc.8` + `vite@8` 可安装可运行。**但 `@solidjs/web` 会双份**（router 内嵌 rc.15，本项目钉 rc.7），S1 按 §6 抬到 `2.0.0-rc.15` 消除；实测 rc.7 也能跑且水合无报错。11 条 peer 警告来自 router 拉入的 Solid 1 线包（`@solid-primitives/refs`、`@solid-devtools/logger`、内嵌 `@solidjs/meta@0.29.4`），不阻塞。                                |
 | 2   | 插件共存 OK：`varlockVitePlugin({ ssrInjectMode: "auto-load" })` + `tanstackStart()` + `@solidjs/vite-plugin(ssr:true)` + `@tailwindcss/vite` 同挂无冲突（dev 样式注入与 build 产物均正常）。**但 `auto-load` 不会注入 Start 的默认 server entry** → 服务端取 env 必须沿用现有模式：`src/server/env.server.ts` 内 `import "varlock/auto-load"; export { ENV as env } from "./env";`；`loader` 服务端 / 客户端都跑，**不得** import 它。附带确认 varlock 敏感值泄漏防护生效。 |
-| 3   | **`handlers: { ANY }` 受支持**（`tsc --noEmit` 零错误；GET / POST / 流式响应全过）→ `routes/api/$.ts` 用单键 `ANY` 委托 Hono，无需逐方法映射（`S2` #4 闭环）；挂法沿用 §4 的 `root.route("/api", apiApp)`。                                                                                                                                                                                                                                                                  |
-| 4   | loader 数据出现在**原始 HTML**（首屏 SSR 直出）；水合后浏览器控制台零错误、零失败请求。                                                                                                                                                                                                                                                                                                                                                                                      |
-| 5   | `@rsbuild/core` 是 **optional peer**，**不必装**，只走 Vite 线即可（dev / build 全过）。                                                                                                                                                                                                                                                                                                                                                                                     |
+| 3   | **`handlers: { ANY }` 受支持**（`tsc --noEmit` 零错误；GET / POST / 流式响应全过）→ `routes/api/$.ts` 用单键 `ANY` 委托 Hono，无需逐方法映射（`S2` #4 闭环）；挂法沿用 §4 的 `root.route("/api", apiApp)`。                                                                                  |
+| 4   | loader 数据出现在**原始 HTML**（首屏 SSR 直出）；水合后浏览器控制台零错误、零失败请求。                                                                                                                                                                                                   |
+| 5   | `@rsbuild/core` 是 **optional peer**，**不必装**，只走 Vite 线即可（dev / build 全过）。                                                                                                                                                                                                  |
 
 **S0 附带回填（S1 要处理）**
 
@@ -203,7 +203,18 @@ Hono 内部路径同步重排（去掉已在 `route("/api", …)` 前缀里重�
 ### S4 · 文档与回归
 
 - 文档同批更新：`A1`（拓扑 / 目录 / 端口 / env / CORS）、`A3`（URL 前缀）、`A5`（路由写法 / loader）、`RM`（是否新增里程碑）、各模块 `README.md`、`AGENTS.md` §2 状态列、`S1` 重写。
-- 回归门槛：`check-types` / `lint` / `build` 全绿；P2 手工用例全过（上传 → 断网重连断点续传 → 刷新后队列恢复 → 目录树 / 列表 / 网格 → 拖拽 → 移动 / 重命名 / 删除 / 属性 → 回收站）；`/api/reference` 与 `openapi.json` 可访问；登录 / 会话（`D4`）不回归。
+- 回归门槛：`check-types` / `lint` / `build` 全绿；P2 手工用例全过（上传 → 断网重连断点续传 → 刷新后队列恢复 → 目录树 / 列表 / 网格 → 拖拽 → 移动 / 重命名 / 删除 / 属性 → 回收站）；`/api/rpc` 与 `openapi.json` 可访问；登录 / 会话（`D4`）不回归。
+
+### S1–S3 结论（2026-10-18 落地）
+
+| #   | 结论                                                                                                                                                                                                                                                                                                     |
+| --- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1   | **`parseServerFunctionUrl` 版本缺口**：`@tanstack/solid-start@2.0.0-rc.8` 仍按旧名从 `@solidjs/web/server-functions/server` 导入，而 `@solidjs/web@2.0.0-rc.15` 已改名为 `parseServerFunctionActionUrl`，上游没有更新的 rc 版 → 在 `vite.config.ts` 加 `solidWebServerFunctionUrlShim()`（`enforce:"pre"`，**仅当 importer 匹配 `@tanstack/(solid-start\|start-)`** 时才把它重定向到虚拟 shim 补这个别名），不动依赖版本。 |
+| 2   | **prod 入口必须自带静态资源服务**：Start 的默认 server entry（`dist/server/server.js`）只做 SSR，**不含 `dist/client` 静态服务** → `apps/web/scripts/start.mjs` 用 `Bun.serve`：先按 `dist/client` 取文件（`assets/` 长缓存、其余短缓存、防路径穿越），未命中再交给 `serverEntry.fetch`。                                                         |
+| 3   | Solid rc.15 **已移除 `Suspense`**（`solid-js` 与 `@solidjs/web` 均不导出）→ `__root.tsx` 不再包 Suspense；`JSX.Element` 须 `import type { JSX } from "@solidjs/web"`（rc 线没有全局 JSX 命名空间）。                                                                                                    |
+| 4   | 服务端取 env 沿用 `src/server/env.server.ts`（`import "varlock/auto-load"` + `export { ENV as env } from "../env"`）：生成物实际在 `src/env.ts`，故相对路径是 `../env`（§6 原写作 `./env`）。                                                                                                             |
+| 5   | `routes/api/$.ts` 只声明 `server`，Start 会把该节点从**客户端**路由树剪除（`pruneServerOnlySubtrees`），客户端产物里没有对应 chunk —— Hono 挂载天然只存在于服务端。                                                                                                                                    |
+| 6   | **S2 的「页面改 `loader` + 缓存读取」尚未兑现**：13 个路由只做了 TanStack 路由外壳（`createFileRoute` / `useParams` / `useSearch`），数据仍在组件内用 `createSignal` + `createEffect` 直接调 `client.*`（如 `files-browser.tsx` 的 `client.file.list`）→ 首屏 SSR 目前只出壳。`@tanstack/solid-query` / `query-core` 仍留在依赖里但已无引用。 |
 
 ## 8. 回滚
 

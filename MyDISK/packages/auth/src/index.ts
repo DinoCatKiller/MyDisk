@@ -7,7 +7,6 @@ export type AuthConfig = {
   NODE_ENV?: string;
   BETTER_AUTH_URL: string;
   BETTER_AUTH_SECRET: string;
-  CORS_ORIGIN: string;
 };
 
 export type CreateAuthOptions = {
@@ -28,7 +27,8 @@ export function createAuth(env: AuthConfig, database: Database, options: CreateA
       provider: "pg",
       schema,
     }),
-    trustedOrigins: [env.CORS_ORIGIN, ...(options.desktopOrigins ?? [])],
+    // 单 app 同源（`D8`）：可信来源即应用自身地址，不再单独配置 CORS_ORIGIN
+    trustedOrigins: [env.BETTER_AUTH_URL, ...(options.desktopOrigins ?? [])],
     emailAndPassword: {
       enabled: true,
       // 系统不存在公开注册能力

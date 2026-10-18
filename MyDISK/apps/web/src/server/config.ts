@@ -2,8 +2,8 @@ import { isAbsolute, resolve } from "node:path";
 
 import { env } from "./env.server";
 
-/** 项目根目录：apps/server/src → 上溯三级 */
-const projectRoot = resolve(import.meta.dir, "../../..");
+/** 项目根目录：apps/web/src/server → 上溯四级 */
+const projectRoot = resolve(import.meta.dir, "../../../..");
 
 /** 相对路径基于项目根解析，避免受运行时 cwd 影响 */
 function resolveStorageRoot(raw: string): string {

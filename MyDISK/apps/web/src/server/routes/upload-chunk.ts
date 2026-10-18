@@ -11,6 +11,7 @@ import { auth, getDb } from "../services";
 /**
  * 二进制面上传：POST /api/upload/chunk?uploadId=<sessionId>&index=<n>
  * body 为原始分片流（application/octet-stream），不走 oRPC（`D3`）。
+ * 路径自带 `/api` 前缀（`GUI` §4 / `D8`）。
  */
 export const uploadChunkRoute = new Hono();
 

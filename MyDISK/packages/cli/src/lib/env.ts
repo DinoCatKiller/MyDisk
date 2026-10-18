@@ -8,7 +8,6 @@ export type CliEnv = {
   REDIS_URL: string;
   BETTER_AUTH_SECRET: string;
   BETTER_AUTH_URL: string;
-  CORS_ORIGIN: string;
   STORAGE_ROOT: string;
   ENCRYPTION_KEY: string;
   UPLOAD_CHUNK_SIZE: number;
@@ -19,7 +18,7 @@ export function getProjectRoot(): string {
   return resolve(import.meta.dir, "../../../..");
 }
 
-export const SERVER_ENV_PATH = "apps/server/.env";
+export const SERVER_ENV_PATH = "apps/web/.env";
 export const INSTALL_MARK = "node_modules/.pstorage-installed";
 
 function parseEnvFile(path: string): Record<string, string> {
@@ -49,7 +48,7 @@ function parseEnvFile(path: string): Record<string, string> {
   return result;
 }
 
-/** 读取 apps/server/.env，并允许真实环境变量覆盖 */
+/** 读取 apps/web/.env，并允许真实环境变量覆盖 */
 export function loadCliEnv(): CliEnv {
   const projectRoot = getProjectRoot();
   const fileVars = parseEnvFile(resolve(projectRoot, SERVER_ENV_PATH));
@@ -63,7 +62,6 @@ export function loadCliEnv(): CliEnv {
     REDIS_URL: pick("REDIS_URL", "redis://127.0.0.1:6379"),
     BETTER_AUTH_SECRET: pick("BETTER_AUTH_SECRET", "my-disk-development-secret-key-0001"),
     BETTER_AUTH_URL: pick("BETTER_AUTH_URL", "http://localhost:3000"),
-    CORS_ORIGIN: pick("CORS_ORIGIN", "http://localhost:3001"),
     STORAGE_ROOT: pick("STORAGE_ROOT", ""),
     ENCRYPTION_KEY: pick("ENCRYPTION_KEY", "my-disk-dev-only-encryption-key-01"),
     UPLOAD_CHUNK_SIZE: Number(pick("UPLOAD_CHUNK_SIZE", "8388608")),

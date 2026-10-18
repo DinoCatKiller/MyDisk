@@ -13,7 +13,8 @@ import { auth, getDb } from "../services";
 /**
  * 二进制面取流：GET/HEAD /api/raw/:nodeId?token=<签名>&dl=1&inline=1
  * 支持 Range → 206；不走 oRPC（`D3`），鉴权用短时签名令牌或会话 Cookie。
- * 路径 / query / Range 的校验复用 `@MyDISK/api/schemas/raw`（`A3` §7）。
+ * 路径 / query / Range 的校验复用 `@MyDisk/api/schemas/raw`（`A3` §7）。
+ * 路径自带 `/api` 前缀（`GUI` §4 / `D8`）。
  */
 export const rawRoute = new Hono();
 

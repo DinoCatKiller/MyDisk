@@ -5,8 +5,6 @@
  *   `Content-Type: application/octet-stream`，并带 `withCredentials`。
  * - 用 XHR 而非 fetch，是为了拿到 `upload.onprogress` 做分片级进度。
  */
-import { ENV } from "~/env";
-
 export type ChunkUploadResult = {
   received: number;
   etag: string;
@@ -22,16 +20,12 @@ export type UploadChunkOptions = {
   signal?: AbortSignal;
 };
 
-/** 推导二进制面所在的服务端 origin（绝对地址优先，否则回落同源）。 */
+/** 二进制面与页面同源（`D8` 单 app）：直接使用当前 origin。 */
 export function resolveServerOrigin(): string {
-  const configured = ENV.VITE_SERVER_URL ?? "";
-  if (/^https?:\/\//i.test(configured)) {
-    return configured.replace(/\/+$/, "");
-  }
   if (typeof window !== "undefined") {
     return window.location.origin;
   }
-  return configured.replace(/\/+$/, "");
+  return "";
 }
 
 export function uploadChunk(options: UploadChunkOptions): Promise<ChunkUploadResult> {

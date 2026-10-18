@@ -1,4 +1,4 @@
-import { useLocation, useNavigate } from "@solidjs/router";
+import { createFileRoute, useNavigate } from "@tanstack/solid-router";
 import { Show, createMemo, createSignal } from "solid-js";
 
 import { Protected } from "~/components/layout/protected";
@@ -21,10 +21,17 @@ function formatDate(value: string | Date | null | undefined): string {
   return date.toLocaleString("zh-CN", { hour12: false });
 }
 
-export default function SecuritySettingsPage() {
-  const location = useLocation();
+export const Route = createFileRoute("/settings/security")({
+  validateSearch: (search: Record<string, unknown>): { force?: boolean } => ({
+    force: search.force === "1" || search.force === true ? true : undefined,
+  }),
+  component: SecuritySettingsPage,
+});
+
+function SecuritySettingsPage() {
   const navigate = useNavigate();
-  const forced = createMemo(() => location.search.includes("force=1"));
+  const search = Route.useSearch();
+  const forced = createMemo(() => Boolean(search().force));
 
   const [currentPassword, setCurrentPassword] = createSignal("");
   const [newPassword, setNewPassword] = createSignal("");
@@ -64,7 +71,7 @@ export default function SecuritySettingsPage() {
       setConfirmPassword("");
       await refreshSession();
       if (forced()) {
-        navigate("/files", { replace: true });
+        navigate({ to: "/files", replace: true });
       }
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

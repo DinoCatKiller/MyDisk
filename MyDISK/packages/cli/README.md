@@ -21,14 +21,14 @@
 | `src/commands/{passwd,admin,db,serve}.ts` | `passwd` / `admin:add\|list\|remove` / `db:push\|generate\|studio` / `serve`、`openapi`                                                  |
 | `src/lib/bootstrap.ts`                    | `makeDb`/`makeAuth`/`createFounder`/`ensureLocalConnection`/`writeInitialSettings`/`checkDatabase`/`pushSchema`                          |
 | `src/lib/cli-sh.ts`                       | 幂等生成项目根 `cli.sh`/`cli.ps1`（已存在则跳过）                                                                                        |
-| `src/lib/env.ts`                          | `loadCliEnv`：读 `apps/server/.env` 且真实环境变量可覆盖；`maskDatabaseUrl` 打印脱敏                                                     |
+| `src/lib/env.ts`                          | `loadCliEnv`：读 `apps/web/.env`（单 app，`D8`）且真实环境变量可覆盖；`maskDatabaseUrl` 打印脱敏                                           |
 | `src/lib/prompts.ts`                      | `DEFAULT_FOUNDER`、`askText`/`askPassword`/`askConfirm`、`pickMainMenuAction`                                                            |
 
 ## 必须知道的三个设计决定
 
 1. **建号走允许注册的 auth 实例**：`createFounder`/`createAdmin` 用 `allowSignUp:true` 的实例 `signUpEmail` 建号，保证密码哈希与 Better-Auth 完全一致；系统运行态仍禁注册（`D4`）。
 2. **`cli.sh` 幂等且能自举**：未检测到安装标记时自动 `bun install` 再进 `install`，把首次部署压成一条命令；Windows 同步生成 `cli.ps1`。
-3. **env 单一来源**：CLI 读 `apps/server/.env` 并允许真实环境变量覆盖，避免 CLI 与 server 各读一份配置造成分叉。
+3. **env 单一来源**：CLI 读 `apps/web/.env` 并允许真实环境变量覆盖，避免 CLI 与 app 各读一份配置造成分叉。
 
 ## 相关
 

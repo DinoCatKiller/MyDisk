@@ -61,7 +61,7 @@ export async function runInstall(args: InstallArgs): Promise<void> {
     logInfo("连接成功");
   } catch (error) {
     logWarn(`数据库连接失败：${(error as Error).message}`);
-    logWarn("请确认 PostgreSQL 已启动，且 apps/server/.env 中的 DATABASE_URL 正确");
+    logWarn("请确认 PostgreSQL 已启动，且 apps/web/.env 中的 DATABASE_URL 正确");
     process.exit(1);
   }
 
