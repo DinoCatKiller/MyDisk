@@ -226,8 +226,8 @@ const rename = protectedProcedure
 const move = protectedProcedure
   .route({
     method: "POST",
-    path: "/files/{nodeId}/move",
-    summary: "移动节点到目标目录（P2 仅支持同连接）",
+    path: "/files/move",
+    summary: "批量移动节点到目标目录（P2 仅支持同连接）",
     tags: ["file"],
   })
   .input(moveInput)

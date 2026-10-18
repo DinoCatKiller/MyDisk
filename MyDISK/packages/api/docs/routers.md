@@ -298,7 +298,7 @@ export const list = protectedProcedure
 | `system`     | `/system`                   | `GET /system/settings`                                |
 | `auth`       | `/auth`                     | `POST /auth/sign-in`、`POST /auth/admins`             |
 | `connection` | `/connections`              | `POST /connections/{id}/default`                      |
-| `file`       | `/files`                    | `POST /files/{id}/move`、`POST /files/batch-download` |
+| `file`       | `/files`                    | `POST /files/move`、`POST /files/remove`、`POST /files/batch-download` |
 | `upload`     | `/uploads`                  | `POST /uploads/init`、`POST /uploads/{id}/complete`   |
 | `share`      | `/shares`、`/public/shares` | 管理端与公开访问分离                                  |
 | `task`       | `/tasks`                    | `GET /tasks/{id}`                                     |

@@ -215,6 +215,7 @@ Hono 内部路径**保持 `/api` 前缀不变**：`routes/api/$.ts` 直接 `apiA
 | 4   | 服务端取 env 沿用 `src/server/env.server.ts`（`import "varlock/auto-load"` + `export { ENV as env } from "../env"`）：生成物实际在 `src/env.ts`，故相对路径是 `../env`（§6 原写作 `./env`）。                                                                                                             |
 | 5   | `routes/api/$.ts` 只声明 `server`，Start 会把该节点从**客户端**路由树剪除（`pruneServerOnlySubtrees`），客户端产物里没有对应 chunk —— Hono 挂载天然只存在于服务端。                                                                                                                                    |
 | 6   | **S2 的「页面改 `loader` + 缓存读取」尚未兑现**：13 个路由只做了 TanStack 路由外壳（`createFileRoute` / `useParams` / `useSearch`），数据仍在组件内用 `createSignal` + `createEffect` 直接调 `client.*`（如 `files-browser.tsx` 的 `client.file.list`）→ 首屏 SSR 目前只出壳。`@tanstack/solid-query` / `query-core` 仍留在依赖里但已无引用。 |
+| 7   | **`/api/openapi.json` 的 500 是两个叠加原因**（S4 期间修复）：① `file.move` 的 `.route({ path: "/files/{nodeId}/move" })` 声明了动态参数，但 `moveInput` 是批量的 `{ nodeIds[], targetParentId? }`，`.input()` 里没有 `nodeId` → 生成器报「path 有动态参数时 input schema 必须为含全部动态参数的 required object」；改为集合式 `POST /files/move`（与 `remove` 一致）并同步改 `A3` §11.3。② 修完 ① 后暴露第二层：Varlock 的响应泄漏扫描（`patch-response.mjs`，对所有标记 sensitive 且 `preventLeaks=true` 的值做 `String.includes`）命中 `STORAGE_ROOT=storage` —— 而 "storage" 是 OpenAPI 文档里的常见子串（`storageKey`、连接 `type` 等），属误报；按 Varlock 官方语义（`@sensitive={preventLeaks=false}`：关闭响应泄漏拦截、日志脱敏仍生效）改 `apps/web/.env.schema`。 |
 
 ## 8. 回滚
 
