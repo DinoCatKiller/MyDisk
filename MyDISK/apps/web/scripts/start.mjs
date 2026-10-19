@@ -10,12 +10,15 @@ process.env.NODE_ENV ??= "production";
 const appRoot = fileURLToPath(new URL("../", import.meta.url));
 const clientDir = join(appRoot, "dist", "client");
 
+/** 端口与监听地址的唯一定义在 `apps/web/.env.schema`（varlock 校验 + 默认值） */
+const { env } = await import("../src/server/env.server.ts");
+
 const { default: serverEntry } = await import(
   new URL("../dist/server/server.js", import.meta.url).href
 );
 
-const port = Number(process.env.PORT ?? 3000);
-const hostname = process.env.HOST ?? "0.0.0.0";
+const port = env.PORT;
+const hostname = env.HOST;
 
 /** 从 dist/client 读取静态资源；不存在或路径穿越返回 null，交给 SSR 处理。 */
 async function tryStatic(pathname) {

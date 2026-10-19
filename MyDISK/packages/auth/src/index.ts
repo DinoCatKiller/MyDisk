@@ -3,6 +3,8 @@ import * as schema from "@MyDISK/db/schema/auth";
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 
+import { MIN_PASSWORD_LENGTH } from "./password";
+
 export type AuthConfig = {
   NODE_ENV?: string;
   BETTER_AUTH_URL: string;
@@ -33,7 +35,7 @@ export function createAuth(env: AuthConfig, database: Database, options: CreateA
       enabled: true,
       // 系统不存在公开注册能力
       disableSignUp: !(options.allowSignUp ?? false),
-      minPasswordLength: 8,
+      minPasswordLength: MIN_PASSWORD_LENGTH,
     },
     secret: env.BETTER_AUTH_SECRET,
     baseURL: env.BETTER_AUTH_URL,

@@ -1,19 +1,19 @@
 import { For, Show } from "solid-js";
 
-import type { FileRouterNode } from "@MyDISK/api/routers/file";
+import type { FileNodeRow } from "@MyDISK/db/schema";
 
 import { FileRow, type FileView } from "./file-row";
 
 import styles from "./file-list.module.css";
 
 export type FileListProps = {
-  items: FileRouterNode[];
+  items: FileNodeRow[];
   view: FileView;
   loading: boolean;
-  onOpen: (node: FileRouterNode) => void;
-  onDownload: (node: FileRouterNode) => void;
-  onRename: (node: FileRouterNode) => void;
-  onDelete: (node: FileRouterNode) => void;
+  onOpen: (node: FileNodeRow) => void;
+  onDownload: (node: FileNodeRow) => void;
+  onRename: (node: FileNodeRow) => void;
+  onDelete: (node: FileNodeRow) => void;
 };
 
 export function FileList(props: FileListProps) {

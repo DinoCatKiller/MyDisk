@@ -9,7 +9,7 @@
 import { createActor } from "xstate";
 import { createSignal } from "solid-js";
 
-import type { FileRouterNode } from "@MyDISK/api/routers/file";
+import type { FileNodeRow } from "@MyDISK/db/schema";
 
 import { client } from "~/utils/orpc";
 
@@ -36,7 +36,7 @@ export type UploadItemView = {
   progress: number;
   uploadedBytes: number;
   error: string | null;
-  file: FileRouterNode | null;
+  file: FileNodeRow | null;
   parentId: string | null;
 };
 

@@ -3,7 +3,7 @@ import { ORPCError } from "@orpc/server";
 
 import { fileNode } from "@MyDISK/db/schema";
 
-import { protectedProcedure } from "../index";
+import { protectedProcedure } from "../procedure";
 import { buildRawUrl, signRawToken } from "../lib/raw-token";
 import { previewUrlInput, previewUrlSchema } from "../schemas/preview";
 

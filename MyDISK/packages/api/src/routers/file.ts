@@ -5,7 +5,7 @@ import * as z from "zod";
 import type { Database } from "@MyDISK/db";
 import { fileNode, shareLink } from "@MyDISK/db/schema";
 
-import { protectedProcedure } from "../index";
+import { protectedProcedure } from "../procedure";
 import { driverFor, resolveConnection } from "../lib/connections";
 import { collectSubtree, extOf, resolveUniqueName } from "../lib/files";
 import { paginationSchema, sortSchema } from "../schemas/common";
@@ -442,5 +442,3 @@ export const fileRouter = {
   emptyTrash,
   stats,
 };
-
-export type FileRouterNode = typeof fileNode.$inferSelect;

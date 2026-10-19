@@ -4,7 +4,7 @@ import * as z from "zod";
 
 import { user } from "@MyDISK/db/schema";
 
-import { founderProcedure, protectedProcedure, publicProcedure } from "../index";
+import { founderProcedure, protectedProcedure, publicProcedure } from "../procedure";
 import {
   adminSchema,
   changePasswordInput,

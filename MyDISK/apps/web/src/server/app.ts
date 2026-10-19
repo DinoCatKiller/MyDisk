@@ -6,7 +6,7 @@ import { ZodToJsonSchemaConverter } from "@orpc/zod/zod4";
 import { Hono } from "hono";
 import { logger } from "hono/logger";
 
-import { appRouter } from "@MyDISK/api/routers/index";
+import { appRouter } from "@MyDISK/api";
 
 import { serverConfig } from "./config";
 import { createContext } from "./context";

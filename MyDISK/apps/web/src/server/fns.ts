@@ -2,9 +2,9 @@ import { call } from "@orpc/server";
 import { getRequestEvent } from "@solidjs/web";
 import { createServerFn } from "@tanstack/solid-start";
 
-import type { FileRouterNode } from "@MyDISK/api/routers/file";
-import { appRouter } from "@MyDISK/api/routers/index";
+import { appRouter } from "@MyDISK/api";
 import { listFilesInput, nodeIdInput } from "@MyDISK/api/schemas/file";
+import type { FileNodeRow } from "@MyDISK/db/schema";
 
 import type { SessionUser } from "~/lib/session";
 
@@ -44,7 +44,7 @@ export const fetchFileList = createServerFn({ method: "GET" })
 /** 面包屑祖先链（`file.path`） */
 export const fetchFilePath = createServerFn({ method: "GET" })
   .validator(nodeIdInput)
-  .handler(async ({ data }): Promise<FileRouterNode[]> => {
+  .handler(async ({ data }): Promise<FileNodeRow[]> => {
     const context = await createContextFromHeaders(currentHeaders());
     return await call(appRouter.file.path, data, { context });
   });

@@ -1,6 +1,8 @@
 import { createFileRoute, useRouter } from "@tanstack/solid-router";
 import { For, Show, createSignal } from "solid-js";
 
+import { MIN_PASSWORD_LENGTH } from "@MyDISK/auth/password";
+
 import { Protected } from "~/components/layout/protected";
 import { Alert } from "~/components/ui/alert";
 import { Button } from "~/components/ui/button";
@@ -62,8 +64,8 @@ function AdminUsersPage() {
     setError("");
     setNotice("");
 
-    if (password().length < 8) {
-      setError("密码至少 8 位");
+    if (password().length < MIN_PASSWORD_LENGTH) {
+      setError(`密码至少 ${MIN_PASSWORD_LENGTH} 位`);
       return;
     }
 
@@ -235,7 +237,7 @@ function AdminUsersPage() {
                   <TextField
                     label="初始密码"
                     type="password"
-                    hint="至少 8 位"
+                    hint={`至少 ${MIN_PASSWORD_LENGTH} 位`}
                     value={password()}
                     onInput={(event) => setPassword(event.currentTarget.value)}
                   />

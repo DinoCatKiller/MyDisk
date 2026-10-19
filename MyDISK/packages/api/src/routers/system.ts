@@ -4,7 +4,7 @@ import * as z from "zod";
 import type { Database } from "@MyDISK/db";
 import { fileNode, shareLink, storageConnection, systemSetting } from "@MyDISK/db/schema";
 
-import { founderProcedure, protectedProcedure, publicProcedure } from "../index";
+import { founderProcedure, protectedProcedure, publicProcedure } from "../procedure";
 import {
   installStatusSchema,
   settingsSchema,

@@ -9,7 +9,7 @@
  *
  * `PAUSE` / `STOP` 通过中断在飞 invoke 取消 XHR（`chunkPump` 在退出时 abort）。
  */
-import type { FileRouterNode } from "@MyDISK/api/routers/file";
+import type { FileNodeRow } from "@MyDISK/db/schema";
 import { assign, fromCallback, fromPromise, sendParent, setup, type ActorRefFrom } from "xstate";
 
 import { client } from "~/utils/orpc";
@@ -62,7 +62,7 @@ export type ItemContext = {
   totalChunks: number;
   uploadedParts: number[];
   uploadedBytes: number;
-  file: FileRouterNode | null;
+  file: FileNodeRow | null;
   progress: number;
   error: string | null;
   maxParallelChunks: number;
@@ -92,7 +92,7 @@ type PrepareInput = {
 };
 
 type PrepareOutput =
-  | { instant: true; file: FileRouterNode }
+  | { instant: true; file: FileNodeRow }
   | {
       instant: false;
       uploadId: string;
@@ -268,7 +268,7 @@ const chunkPump = fromCallback<ItemEvent, PumpInput>(({ input, sendBack }) => {
   return () => controller.abort();
 });
 
-const finalizeUpload = fromPromise<FileRouterNode, { uploadId: string }>(async ({ input }) => {
+const finalizeUpload = fromPromise<FileNodeRow, { uploadId: string }>(async ({ input }) => {
   const result = await client.upload.complete({ uploadId: input.uploadId });
   if (!result.fileNode) {
     throw new Error("合并分片结果缺少文件节点");

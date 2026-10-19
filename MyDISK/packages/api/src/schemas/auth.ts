@@ -1,5 +1,6 @@
 import * as z from "zod";
 
+import { MIN_PASSWORD_LENGTH } from "@MyDISK/auth/password";
 import { userRoleEnum, userStatusEnum } from "@MyDISK/db/schema";
 
 export const emailSchema = z.email({ message: "邮箱格式不正确" });
@@ -12,7 +13,7 @@ export const signInInput = z.object({
 
 export const changePasswordInput = z.object({
   currentPassword: z.string().min(1, "请输入当前密码"),
-  newPassword: z.string().min(8, "新密码至少 8 位"),
+  newPassword: z.string().min(MIN_PASSWORD_LENGTH, `新密码至少 ${MIN_PASSWORD_LENGTH} 位`),
 });
 
 export const updateProfileInput = z.object({
@@ -23,7 +24,7 @@ export const updateProfileInput = z.object({
 export const createAdminInput = z.object({
   email: emailSchema,
   name: z.string().min(1).max(64),
-  password: z.string().min(8, "密码至少 8 位"),
+  password: z.string().min(MIN_PASSWORD_LENGTH, `密码至少 ${MIN_PASSWORD_LENGTH} 位`),
   mustChangePassword: z.boolean().optional(),
 });
 

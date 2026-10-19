@@ -1,4 +1,4 @@
-import type { FileRouterNode } from "@MyDISK/api/routers/file";
+import type { FileNodeRow } from "@MyDISK/db/schema";
 
 import { fetchFileList, fetchFilePath } from "~/server/fns";
 
@@ -6,9 +6,9 @@ import { fetchFileList, fetchFilePath } from "~/server/fns";
 export type FilesLoaderData = {
   /** 当前目录节点 ID（裸 `/files` 为 null） */
   parentId: string | null;
-  items: FileRouterNode[];
+  items: FileNodeRow[];
   /** 面包屑祖先链 */
-  path: FileRouterNode[];
+  path: FileNodeRow[];
   /** 服务端取数错误（有值时前端展示告警而不是抛错页） */
   error: string;
 };
@@ -37,7 +37,7 @@ export async function loadFiles(parentId: string | null): Promise<FilesLoaderDat
         },
       }),
       parentId
-        ? fetchFilePath({ data: { nodeId: parentId } }).catch((): FileRouterNode[] => [])
+        ? fetchFilePath({ data: { nodeId: parentId } }).catch((): FileNodeRow[] => [])
         : null,
     ]);
 

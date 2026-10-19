@@ -5,7 +5,7 @@ import type { Database } from "@MyDISK/db";
 import { fileNode, uploadSession } from "@MyDISK/db/schema";
 import { buildStorageKey } from "@MyDISK/storage";
 
-import { protectedProcedure } from "../index";
+import { protectedProcedure } from "../procedure";
 import { driverFor, resolveConnection } from "../lib/connections";
 import {
   basenameOf,

@@ -1,4 +1,4 @@
-import type { AppRouterClient } from "@MyDISK/api/routers/index";
+import type { AppRouterClient } from "@MyDISK/api";
 import { createORPCClient } from "@orpc/client";
 import { RPCLink } from "@orpc/client/fetch";
 

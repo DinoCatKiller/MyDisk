@@ -5,6 +5,8 @@ import type { CommandModule } from "yargs";
 
 import { account, user } from "@MyDISK/db/schema/auth";
 
+import { MIN_PASSWORD_LENGTH } from "@MyDISK/auth/password";
+
 import { loadCliEnv } from "../lib/env";
 import { makeDb } from "../lib/bootstrap";
 import { askPassword, logInfo, logStep, logWarn } from "../lib/prompts";
@@ -71,7 +73,7 @@ export async function runPasswd(args: PasswdArgs): Promise<void> {
 
   let nextPassword = args.password ?? "";
   if (!nextPassword) {
-    const first = await askPassword("新密码（至少 8 位）");
+    const first = await askPassword(`新密码（至少 ${MIN_PASSWORD_LENGTH} 位）`);
     const second = await askPassword("再次输入新密码");
     if (first !== second) {
       logWarn("两次输入的密码不一致");
@@ -80,8 +82,8 @@ export async function runPasswd(args: PasswdArgs): Promise<void> {
     nextPassword = first;
   }
 
-  if (nextPassword.length < 8) {
-    logWarn("密码至少 8 位");
+  if (nextPassword.length < MIN_PASSWORD_LENGTH) {
+    logWarn(`密码至少 ${MIN_PASSWORD_LENGTH} 位`);
     process.exit(1);
   }
 
@@ -109,7 +111,7 @@ export const passwdCommand: CommandModule = {
   builder: (yargsInstance) =>
     yargsInstance
       .option("email", { type: "string", describe: "目标管理员邮箱" })
-      .option("password", { type: "string", describe: "新密码（至少 8 位）" }),
+      .option("password", { type: "string", describe: `新密码（至少 ${MIN_PASSWORD_LENGTH} 位）` }),
   handler: async (argv) => {
     await runPasswd({
       email: argv.email as string | undefined,

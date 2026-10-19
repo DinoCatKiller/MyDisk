@@ -1,6 +1,6 @@
 import { Show } from "solid-js";
 
-import type { FileRouterNode } from "@MyDISK/api/routers/file";
+import type { FileNodeRow } from "@MyDISK/db/schema";
 
 import {
   DownloadIcon,
@@ -17,12 +17,12 @@ import styles from "./file-row.module.css";
 export type FileView = "list" | "grid";
 
 export type FileRowProps = {
-  node: FileRouterNode;
+  node: FileNodeRow;
   view: FileView;
-  onOpen: (node: FileRouterNode) => void;
-  onDownload: (node: FileRouterNode) => void;
-  onRename: (node: FileRouterNode) => void;
-  onDelete: (node: FileRouterNode) => void;
+  onOpen: (node: FileNodeRow) => void;
+  onDownload: (node: FileNodeRow) => void;
+  onRename: (node: FileNodeRow) => void;
+  onDelete: (node: FileNodeRow) => void;
 };
 
 export function FileRow(props: FileRowProps) {

@@ -14,14 +14,15 @@
 
 ## 核心内容
 
-| 项                                 | 说明                                                                                                              |
-| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------- |
-| `createAuth(env, db, opts?)`       | `betterAuth` + `drizzleAdapter(provider:"pg")`；`opts.allowSignUp`、`opts.desktopOrigins`                         |
-| `disableSignUp`                    | `= !allowSignUp`，**默认禁注册**；`minPasswordLength: 8`                                                          |
-| `user.additionalFields`            | `role`(默认 `admin`)/`status`(默认 `active`)/`mustChangePassword`/`lastLoginAt`/`lastLoginIp`，全部 `input:false` |
-| `advanced.defaultCookieAttributes` | 生产 `sameSite:"none"`+`secure`+`httpOnly`；开发 `lax`+`httpOnly`                                                 |
-| `src/client.ts`                    | `createClient(baseURL)`，供 `web` 使用                                                                            |
-| `Auth` 类型                        | `createAuth` 的返回类型，供各包引用                                                                               |
+| 项                                 | 说明                                                                                                                                      |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `createAuth(env, db, opts?)`       | `betterAuth` + `drizzleAdapter(provider:"pg")`；`opts.allowSignUp`、`opts.desktopOrigins`                                                 |
+| `disableSignUp`                    | `= !allowSignUp`，**默认禁注册**；`minPasswordLength: MIN_PASSWORD_LENGTH`                                                                |
+| `src/password.ts`                  | `MIN_PASSWORD_LENGTH = 8`：密码策略的**唯一来源**，`api` 的入参 schema、CLI 与前端表单校验都从这取（该模块零依赖，可安全在浏览器 import） |
+| `user.additionalFields`            | `role`(默认 `admin`)/`status`(默认 `active`)/`mustChangePassword`/`lastLoginAt`/`lastLoginIp`，全部 `input:false`                         |
+| `advanced.defaultCookieAttributes` | 生产 `sameSite:"none"`+`secure`+`httpOnly`；开发 `lax`+`httpOnly`                                                                         |
+| `src/client.ts`                    | `createClient(baseURL)`，供 `web` 使用                                                                                                    |
+| `Auth` 类型                        | `createAuth` 的返回类型，供各包引用                                                                                                       |
 
 ## 必须知道的三个设计决定
 

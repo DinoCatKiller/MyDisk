@@ -155,19 +155,20 @@ cli ─────▶ db + auth + storage（不依赖 web）
 
 ### `apps/web/.env.schema`（唯一来源）
 
-| 变量                    | 必填 | 说明                                                        |
-| ----------------------- | ---- | ----------------------------------------------------------- |
-| `NODE_ENV`              | ✓    | development / production / test                             |
-| `DATABASE_URL`          | ✓    | 默认 `postgres://postgres:123456@127.0.0.1:5432/pstorage`   |
-| `REDIS_URL`             | ✓    | 默认 `redis://127.0.0.1:6379`                               |
-| `BETTER_AUTH_SECRET`    | ✓    | ≥32 位                                                      |
-| `BETTER_AUTH_URL`       | ✓    | 指向单 app，默认 `http://localhost:3000`                    |
-| `ENCRYPTION_KEY`        | ✓    | 32 字节，用于加密存储密钥与 SMTP 密码（`A4`）               |
-| `STORAGE_ROOT`          |      | 本地存储根，默认 `<root>/storage`                           |
-| `UPLOAD_CHUNK_SIZE`     |      | 默认 8388608（8MB）                                         |
-| `API_REFERENCE_ENABLED` |      | 默认 true；生产可关 `/api/reference` 与 `/api/openapi.json` |
-| `WEBDAV_ENABLED`        |      | 默认 true                                                   |
-| `PORT`                  |      | 运行期读取，默认 3000（单端口）                             |
+| 变量                    | 必填 | 说明                                                                            |
+| ----------------------- | ---- | ------------------------------------------------------------------------------- |
+| `NODE_ENV`              | ✓    | development / production / test                                                 |
+| `DATABASE_URL`          | ✓    | 默认 `postgres://postgres:123456@127.0.0.1:5432/pstorage`                       |
+| `REDIS_URL`             | ✓    | 默认 `redis://127.0.0.1:6379`                                                   |
+| `BETTER_AUTH_SECRET`    | ✓    | ≥32 位                                                                          |
+| `BETTER_AUTH_URL`       | ✓    | 指向单 app，默认 `http://localhost:3000`                                        |
+| `ENCRYPTION_KEY`        | ✓    | 32 字节，用于加密存储密钥与 SMTP 密码（`A4`）                                   |
+| `STORAGE_ROOT`          |      | 本地存储根，默认 `<root>/storage`                                               |
+| `UPLOAD_CHUNK_SIZE`     |      | 默认 8388608（8MB）                                                             |
+| `API_REFERENCE_ENABLED` |      | 默认 true；生产可关 `/api/reference` 与 `/api/openapi.json`                     |
+| `WEBDAV_ENABLED`        |      | 默认 true                                                                       |
+| `PORT`                  |      | 默认 3000（单端口）；`server/config.ts` 与生产入口 `scripts/start.mjs` 均取自它 |
+| `HOST`                  |      | 默认 `0.0.0.0`；仅本机可写 `127.0.0.1`                                          |
 
 > 改 schema 后必须 `bun run env:generate`（Varlock 生成 `src/env.ts`）。
 
@@ -185,15 +186,15 @@ cli ─────▶ db + auth + storage（不依赖 web）
 
 ## 8. 已识别风险与应对
 
-| 风险                                  | 影响               | 应对                                                                |
-| ------------------------------------- | ------------------ | ------------------------------------------------------------------- |
+| 风险                                           | 影响               | 应对                                                                |
+| ---------------------------------------------- | ------------------ | ------------------------------------------------------------------- |
 | Solid 2 / TanStack Start / Router 全为 RC/beta | API 可能变动       | 锁定 `overrides` 版本；关键用法先写最小验证页                       |
-| 刷新后续传受浏览器限制                | 需求核心项         | 三级方案（File System Access → IndexedDB Blob → 重选文件）；见 `X1` |
-| 大文件分片走 oRPC 性能差              | 上传吞吐           | 二进制面强制走原生 Hono 路由（`D3`）                                |
-| 二进制路由脱离 oRPC                   | OpenAPI 文档不完整 | 手写 spec 片段与自动生成结果合并，CI 校验「接口数 = 文档路径数」    |
-| 本地连接唯一性                        | 数据一致性         | 服务层硬约束 + DB 部分唯一索引（`A2` §4）                           |
-| 弱口令默认管理员                      | 安全               | founder 首次登录强制改密，CLI 提供 `passwd`                         |
-| Windows 无 bash                       | `cli.sh` 不可用    | 同时生成 `cli.ps1`，文档给出 Git Bash / WSL 两种执行方式            |
+| 刷新后续传受浏览器限制                         | 需求核心项         | 三级方案（File System Access → IndexedDB Blob → 重选文件）；见 `X1` |
+| 大文件分片走 oRPC 性能差                       | 上传吞吐           | 二进制面强制走原生 Hono 路由（`D3`）                                |
+| 二进制路由脱离 oRPC                            | OpenAPI 文档不完整 | 手写 spec 片段与自动生成结果合并，CI 校验「接口数 = 文档路径数」    |
+| 本地连接唯一性                                 | 数据一致性         | 服务层硬约束 + DB 部分唯一索引（`A2` §4）                           |
+| 弱口令默认管理员                               | 安全               | founder 首次登录强制改密，CLI 提供 `passwd`                         |
+| Windows 无 bash                                | `cli.sh` 不可用    | 同时生成 `cli.ps1`，文档给出 Git Bash / WSL 两种执行方式            |
 
 ## 相关
 

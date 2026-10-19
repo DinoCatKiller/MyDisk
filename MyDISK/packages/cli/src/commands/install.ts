@@ -4,6 +4,8 @@ import { join } from "node:path";
 
 import type { CommandModule } from "yargs";
 
+import { MIN_PASSWORD_LENGTH } from "@MyDISK/auth/password";
+
 import {
   checkDatabase,
   createFounder,
@@ -103,7 +105,7 @@ export async function runInstall(args: InstallArgs): Promise<void> {
         name = name || (await askText("管理员名称", DEFAULT_FOUNDER.name));
         email = email || (await askText("登录邮箱", DEFAULT_FOUNDER.email));
         if (!passwordValue) {
-          const first = await askPassword("登录密码（至少 8 位）");
+          const first = await askPassword(`登录密码（至少 ${MIN_PASSWORD_LENGTH} 位）`);
           const second = await askPassword("再次输入密码");
           if (first !== second) {
             logWarn("两次输入的密码不一致");
@@ -114,8 +116,8 @@ export async function runInstall(args: InstallArgs): Promise<void> {
       }
     }
 
-    if (passwordValue.length < 8) {
-      logWarn("密码至少 8 位");
+    if (passwordValue.length < MIN_PASSWORD_LENGTH) {
+      logWarn(`密码至少 ${MIN_PASSWORD_LENGTH} 位`);
       process.exit(1);
     }
 
@@ -158,7 +160,10 @@ export const installCommand: CommandModule = {
       })
       .option("name", { type: "string", describe: "管理员名称" })
       .option("email", { type: "string", describe: "登录邮箱" })
-      .option("password", { type: "string", describe: "登录密码（至少 8 位）" }),
+      .option("password", {
+        type: "string",
+        describe: `登录密码（至少 ${MIN_PASSWORD_LENGTH} 位）`,
+      }),
   handler: async (argv) => {
     await runInstall({
       yes: argv.yes as boolean | undefined,

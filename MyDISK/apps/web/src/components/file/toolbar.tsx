@@ -1,4 +1,4 @@
-import type { FileRouterNode } from "@MyDISK/api/routers/file";
+import type { FileNodeRow } from "@MyDISK/db/schema";
 
 import { Button } from "~/components/ui/button";
 import {
@@ -20,7 +20,7 @@ export type SortField = "name" | "size" | "updatedAt" | "type";
 export type SortOrder = "asc" | "desc";
 
 export type ToolbarProps = {
-  path: FileRouterNode[];
+  path: FileNodeRow[];
   keyword: string;
   onKeyword: (value: string) => void;
   sortField: SortField;

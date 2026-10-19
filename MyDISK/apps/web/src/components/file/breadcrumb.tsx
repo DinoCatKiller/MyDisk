@@ -1,13 +1,13 @@
 import { Link } from "@tanstack/solid-router";
 import { For } from "solid-js";
 
-import type { FileRouterNode } from "@MyDISK/api/routers/file";
+import type { FileNodeRow } from "@MyDISK/db/schema";
 
 import styles from "./breadcrumb.module.css";
 
 export type BreadcrumbProps = {
   /** 祖先链（含当前目录），由 `file.path` 返回。 */
-  items: FileRouterNode[];
+  items: FileNodeRow[];
 };
 
 export function Breadcrumb(props: BreadcrumbProps) {

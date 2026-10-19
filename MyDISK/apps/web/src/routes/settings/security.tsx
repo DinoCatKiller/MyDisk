@@ -1,6 +1,8 @@
 import { createFileRoute, useNavigate, useRouter } from "@tanstack/solid-router";
 import { Show, createMemo, createSignal } from "solid-js";
 
+import { MIN_PASSWORD_LENGTH } from "@MyDISK/auth/password";
+
 import { Protected } from "~/components/layout/protected";
 import { Alert } from "~/components/ui/alert";
 import { Button } from "~/components/ui/button";
@@ -52,8 +54,8 @@ function SecuritySettingsPage() {
     setPasswordError("");
     setPasswordOk("");
 
-    if (newPassword().length < 8) {
-      setPasswordError("新密码至少 8 位");
+    if (newPassword().length < MIN_PASSWORD_LENGTH) {
+      setPasswordError(`新密码至少 ${MIN_PASSWORD_LENGTH} 位`);
       return;
     }
     if (newPassword() !== confirmPassword()) {
@@ -137,7 +139,7 @@ function SecuritySettingsPage() {
                   label="新密码"
                   type="password"
                   autocomplete="new-password"
-                  hint="至少 8 位"
+                  hint={`至少 ${MIN_PASSWORD_LENGTH} 位`}
                   value={newPassword()}
                   onInput={(event) => setNewPassword(event.currentTarget.value)}
                 />

@@ -4,7 +4,7 @@ import * as z from "zod";
 
 import { storageConnection } from "@MyDISK/db/schema";
 
-import { protectedProcedure } from "../index";
+import { protectedProcedure } from "../procedure";
 import { connectionIdInput, publicConnectionSchema } from "../schemas/connection";
 
 const list = protectedProcedure
