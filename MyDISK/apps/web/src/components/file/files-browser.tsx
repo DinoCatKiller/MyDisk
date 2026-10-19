@@ -10,7 +10,8 @@ import { Toolbar, type SortField, type SortOrder } from "~/components/file/toolb
 import { Protected } from "~/components/layout/protected";
 import { Alert } from "~/components/ui/alert";
 import { UploadDrawer } from "~/components/upload/upload-drawer";
-import { sessionUser } from "~/lib/session";
+import type { FilesLoaderData } from "~/lib/files-loader";
+import { useSession } from "~/lib/session";
 import { enqueueCandidates, initUploadStore, type UploadCandidate } from "~/lib/upload/store";
 import { client } from "~/utils/orpc";
 
@@ -21,16 +22,17 @@ function messageOf(error: unknown, fallback: string): string {
 }
 
 export type FilesBrowserProps = {
-  /** 路由 splat 段：`/files/<id>/<id>/...`，裸 `/files` 时为空。 */
-  path?: string;
+  /** 路由 loader 装载的数据（`D8` 首屏 SSR + 导航时服务端取数）。 */
+  data: FilesLoaderData;
 };
 
 /** `/files` 与 `/files/<id>/...` 共用的文件浏览器主体。 */
 export function FilesBrowser(props: FilesBrowserProps) {
   const navigate = useNavigate();
+  const session = useSession();
 
-  const [items, setItems] = createSignal<FileRouterNode[]>([]);
-  const [path, setPath] = createSignal<FileRouterNode[]>([]);
+  /** 客户端筛选 / 排序 / 刷新后的覆盖结果；`null` 表示仍用 loader 数据。 */
+  const [override, setOverride] = createSignal<FileRouterNode[] | null>(null);
   const [loading, setLoading] = createSignal(false);
   const [error, setError] = createSignal("");
   const [keyword, setKeyword] = createSignal("");
@@ -39,17 +41,30 @@ export function FilesBrowser(props: FilesBrowserProps) {
   const [view, setView] = createSignal<FileView>("list");
   const [reloadTick, setReloadTick] = createSignal(0);
 
-  /** 路由段即节点 ID：取最后一段作为当前目录（裸 `/files` 为空）。 */
-  const currentId = () => {
-    const parts = (props.path ?? "").split("/").filter(Boolean);
-    return parts.length > 0 ? (parts[parts.length - 1] ?? null) : null;
-  };
+  /** 当前目录节点 ID（由 loader 决定：裸 `/files` 为 null）。 */
+  const parentId = () => props.data.parentId;
+  /** 优先展示客户端覆盖结果，否则用 loader 数据。 */
+  const items = () => override() ?? props.data.items;
+  const path = () => props.data.path;
+  const shownError = () => error() || props.data.error;
 
   const reload = () => setReloadTick((tick) => tick + 1);
 
+  /** loader 数据变化（服务端重新装载）时丢弃本地覆盖，回到首屏真值。 */
+  createEffect(
+    () => props.data,
+    () => {
+      setOverride(null);
+      setError("");
+    },
+  );
+
+  /**
+   * 关键词 / 排序 / 手动刷新变化后客户端重新取数。
+   * 目录切换交给路由 loader，因此这里不依赖 `parentId`（只在 effect 内读取）。
+   */
   createEffect(
     () => ({
-      id: currentId(),
       tick: reloadTick(),
       query: keyword(),
       field: sortField(),
@@ -60,34 +75,21 @@ export function FilesBrowser(props: FilesBrowserProps) {
       setError("");
       void client.file
         .list({
-          parentId: request.id,
+          parentId: parentId(),
           keyword: request.query || null,
           sort: { field: request.field, order: request.order },
           page: 1,
           pageSize: 200,
         })
-        .then((result) => setItems(result.items))
+        .then((result) => setOverride(result.items))
         .catch((loadError: unknown) => setError(messageOf(loadError, "读取目录失败")))
         .finally(() => setLoading(false));
     },
-  );
-
-  createEffect(
-    () => currentId(),
-    (id) => {
-      if (!id) {
-        setPath([]);
-        return;
-      }
-      void client.file
-        .path({ nodeId: id })
-        .then((chain) => setPath(chain))
-        .catch(() => setPath([]));
-    },
+    { defer: true },
   );
 
   onSettled(() => {
-    if (sessionUser()?.mustChangePassword) {
+    if (session()?.mustChangePassword) {
       navigate({ to: "/settings/security", search: { force: true } });
       return;
     }
@@ -119,7 +121,7 @@ export function FilesBrowser(props: FilesBrowserProps) {
       return;
     }
     void client.file
-      .mkdir({ parentId: currentId(), name })
+      .mkdir({ parentId: parentId(), name })
       .then(() => reload())
       .catch((mkdirError: unknown) => setError(messageOf(mkdirError, "新建文件夹失败")));
   };
@@ -146,7 +148,7 @@ export function FilesBrowser(props: FilesBrowserProps) {
   };
 
   const uploadCandidates = (candidates: UploadCandidate[]) => {
-    void enqueueCandidates(candidates, { parentId: currentId() });
+    void enqueueCandidates(candidates, { parentId: parentId() });
   };
 
   return (
@@ -173,8 +175,8 @@ export function FilesBrowser(props: FilesBrowserProps) {
           onRefresh={reload}
         />
 
-        <Show when={error()}>
-          <Alert variant="error">{error()}</Alert>
+        <Show when={shownError()}>
+          <Alert variant="error">{shownError()}</Alert>
         </Show>
 
         <FileList

@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate } from "@tanstack/solid-router";
+import { createFileRoute, useNavigate, useRouter } from "@tanstack/solid-router";
 import { Show, createMemo, createSignal } from "solid-js";
 
 import { Protected } from "~/components/layout/protected";
@@ -7,7 +7,7 @@ import { Button } from "~/components/ui/button";
 import { Card, CardBody, CardFooter, CardHeader } from "~/components/ui/card";
 import { KeyRoundIcon, ShieldCheckIcon } from "~/components/ui/icons";
 import { TextField } from "~/components/ui/input";
-import { refreshSession, sessionUser } from "~/lib/session";
+import { useSession } from "~/lib/session";
 import { client } from "~/utils/orpc";
 
 function formatDate(value: string | Date | null | undefined): string {
@@ -30,6 +30,8 @@ export const Route = createFileRoute("/settings/security")({
 
 function SecuritySettingsPage() {
   const navigate = useNavigate();
+  const router = useRouter();
+  const session = useSession();
   const search = Route.useSearch();
   const forced = createMemo(() => Boolean(search().force));
 
@@ -40,7 +42,7 @@ function SecuritySettingsPage() {
   const [passwordOk, setPasswordOk] = createSignal("");
   const [savingPassword, setSavingPassword] = createSignal(false);
 
-  const [name, setName] = createSignal(sessionUser()?.name ?? "");
+  const [name, setName] = createSignal(session()?.name ?? "");
   const [profileError, setProfileError] = createSignal("");
   const [profileOk, setProfileOk] = createSignal("");
   const [savingProfile, setSavingProfile] = createSignal(false);
@@ -69,7 +71,7 @@ function SecuritySettingsPage() {
       setCurrentPassword("");
       setNewPassword("");
       setConfirmPassword("");
-      await refreshSession();
+      await router.invalidate();
       if (forced()) {
         navigate({ to: "/files", replace: true });
       }
@@ -91,7 +93,7 @@ function SecuritySettingsPage() {
     try {
       await client.auth.updateProfile({ name: name().trim() });
       setProfileOk("资料已更新");
-      await refreshSession();
+      await router.invalidate();
     } catch (error) {
       setProfileError(error instanceof Error ? error.message : "更新失败");
     } finally {
@@ -183,7 +185,7 @@ function SecuritySettingsPage() {
                   value={name()}
                   onInput={(event) => setName(event.currentTarget.value)}
                 />
-                <TextField label="登录邮箱" value={sessionUser()?.email ?? ""} disabled />
+                <TextField label="登录邮箱" value={session()?.email ?? ""} disabled />
               </div>
             </CardBody>
             <CardFooter>
@@ -209,13 +211,13 @@ function SecuritySettingsPage() {
               <dt style={{ color: "var(--md-text-muted)" }}>角色</dt>
               <dd style={{ margin: 0, display: "flex", "align-items": "center", gap: "6px" }}>
                 <ShieldCheckIcon size={15} />
-                {sessionUser()?.role === "founder" ? "创始人管理员" : "普通管理员"}
+                {session()?.role === "founder" ? "创始人管理员" : "普通管理员"}
               </dd>
               <dt style={{ color: "var(--md-text-muted)" }}>上次登录</dt>
-              <dd style={{ margin: 0 }}>{formatDate(sessionUser()?.lastLoginAt)}</dd>
+              <dd style={{ margin: 0 }}>{formatDate(session()?.lastLoginAt)}</dd>
               <dt style={{ color: "var(--md-text-muted)" }}>操作</dt>
               <dd style={{ margin: 0 }}>
-                <Button size="sm" variant="ghost" onClick={() => void refreshSession()}>
+                <Button size="sm" variant="ghost" onClick={() => void router.invalidate()}>
                   刷新会话信息
                 </Button>
               </dd>

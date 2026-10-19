@@ -1,5 +1,5 @@
-import { createFileRoute } from "@tanstack/solid-router";
-import { For, Show, createSignal, onSettled } from "solid-js";
+import { createFileRoute, useRouter } from "@tanstack/solid-router";
+import { For, Show, createSignal } from "solid-js";
 
 import { Protected } from "~/components/layout/protected";
 import { Alert } from "~/components/ui/alert";
@@ -7,7 +7,8 @@ import { Button } from "~/components/ui/button";
 import { Card, CardBody, CardFooter, CardHeader } from "~/components/ui/card";
 import { RefreshIcon, UserPlusIcon } from "~/components/ui/icons";
 import { TextField } from "~/components/ui/input";
-import { isFounder } from "~/lib/session";
+import { useIsFounder, type RouterContext } from "~/lib/session";
+import { fetchAdmins } from "~/server/fns";
 import { client } from "~/utils/orpc";
 
 type AdminRow = {
@@ -30,12 +31,21 @@ function formatDate(value: Date | string | null | undefined): string {
 }
 
 export const Route = createFileRoute("/admin/users")({
+  // 仅创始人装载列表；其它角色返回空数组，由组件展示权限提示（`D8` loader 取数）
+  loader: async ({ context }): Promise<AdminRow[]> => {
+    if ((context as RouterContext).session?.role !== "founder") {
+      return [];
+    }
+    return (await fetchAdmins()) as unknown as AdminRow[];
+  },
   component: AdminUsersPage,
 });
 
 function AdminUsersPage() {
-  const [admins, setAdmins] = createSignal<AdminRow[]>([]);
-  const [loading, setLoading] = createSignal(true);
+  const router = useRouter();
+  const isFounder = useIsFounder();
+  const admins = Route.useLoaderData();
+
   const [error, setError] = createSignal("");
   const [notice, setNotice] = createSignal("");
 
@@ -44,26 +54,8 @@ function AdminUsersPage() {
   const [password, setPassword] = createSignal("");
   const [creating, setCreating] = createSignal(false);
 
-  const load = async () => {
-    setLoading(true);
-    setError("");
-    try {
-      const rows = await client.auth.listAdmins();
-      setAdmins(rows as AdminRow[]);
-    } catch (loadError) {
-      setError(loadError instanceof Error ? loadError.message : "加载失败");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  onSettled(() => {
-    if (isFounder()) {
-      void load();
-    } else {
-      setLoading(false);
-    }
-  });
+  /** 重新装载列表：让根路由 beforeLoad 与 loader 再跑一次（`D8`） */
+  const reload = () => router.invalidate();
 
   const handleCreate = async (event: Event) => {
     event.preventDefault();
@@ -86,7 +78,7 @@ function AdminUsersPage() {
       setName("");
       setEmail("");
       setPassword("");
-      await load();
+      await reload();
     } catch (createError) {
       const message = createError instanceof Error ? createError.message : "创建失败";
       setError(/CONFLICT|已存在/.test(message) ? "该邮箱已存在" : message);
@@ -101,7 +93,7 @@ function AdminUsersPage() {
     try {
       await client.auth.deleteAdmin({ userId: row.id });
       setNotice(`已删除 ${row.email}`);
-      await load();
+      await reload();
     } catch (removeError) {
       const message = removeError instanceof Error ? removeError.message : "删除失败";
       setError(/founder|创始人/.test(message) ? "创始人管理员不可删除" : message);
@@ -116,7 +108,7 @@ function AdminUsersPage() {
         userId: row.id,
         status: row.status === "active" ? "disabled" : "active",
       });
-      await load();
+      await reload();
     } catch (statusError) {
       const message = statusError instanceof Error ? statusError.message : "操作失败";
       setError(/founder|创始人/.test(message) ? "创始人管理员不可被禁用" : message);
@@ -144,9 +136,9 @@ function AdminUsersPage() {
           <Card>
             <CardHeader
               title="管理员列表"
-              description={loading() ? "加载中…" : `共 ${admins().length} 个账户`}
+              description={`共 ${admins().length} 个账户`}
               action={
-                <Button size="sm" variant="ghost" onClick={() => void load()}>
+                <Button size="sm" variant="ghost" onClick={() => void reload()}>
                   <RefreshIcon size={14} />
                   刷新
                 </Button>

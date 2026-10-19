@@ -5,13 +5,14 @@
 | ID     | `A5`                                         |
 | 类型   | 规格                                         |
 | 状态   | 稳定（P1 已落布局与登录；各页面随 P2+ 填充） |
-| 更新   | 2026-10-15                                   |
+| 更新   | 2026-10-19                                   |
 | 何时读 | 加页面、加组件、改布局 / 样式 / 主题前       |
 | 规模   | ~2.5k token                                  |
 
 ## TL;DR
 
 - 路由采用 TanStack Router 文件式路由，页面清单见 §1；`/files/$`（`_splat` 参数）是主界面。
+- 取数走**路由 `loader`**（首屏 SSR 直出），会话由根路由 `beforeLoad` 服务端解析后注入路由 context（`D8`）；写法见 §1.1。
 - 视觉方向：AList / Cloudreve 那种**干净、留白充足、列表信息密度高**的文件管理器观感（只借鉴布局与节奏，不复制其视觉资产）。
 - 样式分工：**Tailwind v4（`@theme` 定义令牌）做原子微调，CSS Modules 管组件结构与复杂布局**；禁止在 JSX 里堆超长 class 串。
 - 上传队列状态机见 `A6` §2.3；上传交互（暂停/停止/续传）细节属 `A6`。
@@ -24,7 +25,7 @@
 | `/login`                 | 自研登录（邮箱+密码；忘记密码入口）                           | ✅ P1                                              |
 | `/forgot-password`       | 输入邮箱 → 队列发重置邮件                                     | ⬜ P4                                              |
 | `/reset-password?token=` | 设置新密码                                                    | ⬜ P4                                              |
-| `/files/$`（`_splat`）   | 主界面：左侧连接+目录树，右侧文件区，顶部工具栏，底部上传抽屉 | ✅ P2（path 段为节点 id，见 `apps/web/README.md`） |
+| `/files/$`（`_splat`）   | 主界面：左侧连接+目录树，右侧文件区，顶部工具栏，底部上传抽屉 | ✅ P2（path 段为节点 id + `loader` 预取，见 `apps/web/README.md`） |
 | `/trash`                 | 回收站（还原 / 彻底删除 / 清空）                              | 🚧 骨架                                            |
 | `/favorites`             | 收藏                                                          | 🚧 骨架                                            |
 | `/shares`                | 分享管理                                                      | 🚧 骨架                                            |
@@ -36,6 +37,13 @@
 | `/admin/users`           | 管理员列表/新增/删除（founder 专属）                          | 🚧 骨架                                            |
 | `/share/[token]`         | 公开分享页（密码门禁 → 目录/预览/下载）                       | ⬜ P3                                              |
 | `/[...404]`              | 404                                                           | ✅ P1                                              |
+
+## 1.1 路由与数据装载（`D8`）
+
+- **首屏取数走路由 `loader`**：`loader` 经 `createServerFn`（`src/server/fns.ts`）调用 oRPC —— SSR 时在**进程内直调**（`@orpc/server` 的 `call`，无 HTTP 往返），客户端导航时走 serverFn 的 HTTP 端点；因此首屏 HTML 即含真实数据。
+- **会话经根路由 `beforeLoad` 注入**：`__root` 的 `beforeLoad` 服务端读请求 Cookie 解析会话，`return { session }` 注入**路由 context**。`getRouter()` 由 Start **按请求实例化**，context 跟随请求隔离，SSR 期间不会跨请求串号。未登录访问受保护页 → `throw redirect({ to: "/login", replace: true })`（307）。
+- **组件读数据**：会话用 `useSession()`（`src/lib/session.ts`，取 `__root` context 的 `session`）；页面数据用 `Route.useLoaderData()`；**不引入** `@tanstack/solid-query`。
+- **变更后刷新**：改密 / 改资料 / 账户增删等用 `router.invalidate()` 重跑 `beforeLoad` + `loader`；文件区筛选 / 排序等纯客户端交互仍由 `client.*` 本地重取覆盖 loader 数据。
 
 ## 2. 关键组件
 

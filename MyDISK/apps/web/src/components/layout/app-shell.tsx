@@ -1,5 +1,5 @@
 import type { JSX } from "@solidjs/web";
-import { useLocation, useNavigate } from "@tanstack/solid-router";
+import { useLocation, useNavigate, useRouter } from "@tanstack/solid-router";
 import { For, Show, createSignal, onCleanup, onSettled } from "solid-js";
 
 import {
@@ -14,7 +14,7 @@ import {
   TrashIcon,
   UsersIcon,
 } from "~/components/ui/icons";
-import { isFounder, sessionUser, signOut } from "~/lib/session";
+import { signOut, useIsFounder, useSession } from "~/lib/session";
 
 import styles from "./app-shell.module.css";
 
@@ -39,6 +39,9 @@ export type AppShellProps = {
 export function AppShell(props: AppShellProps) {
   const location = useLocation();
   const navigate = useNavigate();
+  const router = useRouter();
+  const session = useSession();
+  const isFounder = useIsFounder();
   const [menuOpen, setMenuOpen] = createSignal(false);
 
   const groups = (): NavGroup[] => {
@@ -68,7 +71,7 @@ export function AppShell(props: AppShellProps) {
   const isActive = (href: string) =>
     location().pathname === href || location().pathname.startsWith(`${href}/`);
 
-  const initial = () => (sessionUser()?.name ?? "?").slice(0, 1);
+  const initial = () => (session()?.name ?? "?").slice(0, 1);
 
   onSettled(() => {
     const onDocumentClick = () => setMenuOpen(false);
@@ -79,6 +82,8 @@ export function AppShell(props: AppShellProps) {
   const handleSignOut = async () => {
     setMenuOpen(false);
     await signOut();
+    // 会话来自根路由 beforeLoad：登出后令其重跑，未登录会被重定向到 /login
+    await router.invalidate();
     navigate({ to: "/login", replace: true });
   };
 
@@ -139,15 +144,15 @@ export function AppShell(props: AppShellProps) {
               onClick={() => setMenuOpen((open) => !open)}
             >
               <span class={styles.avatar}>{initial()}</span>
-              <span class={styles.accountName}>{sessionUser()?.name ?? "未登录"}</span>
+              <span class={styles.accountName}>{session()?.name ?? "未登录"}</span>
               <ChevronDownIcon size={15} />
             </button>
 
             <Show when={menuOpen()}>
               <div class={styles.menu}>
                 <div class={styles.menuHeader}>
-                  <div class={styles.menuName}>{sessionUser()?.name}</div>
-                  <div class={styles.menuEmail}>{sessionUser()?.email}</div>
+                  <div class={styles.menuName}>{session()?.name}</div>
+                  <div class={styles.menuEmail}>{session()?.email}</div>
                 </div>
                 <button
                   type="button"

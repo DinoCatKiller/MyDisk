@@ -4,8 +4,8 @@
 | ------ | ------------------------------------------------------------ |
 | ID     | `GUI`                                                        |
 | 类型   | 计划（执行前的改动面与验证门槛）                             |
-| 状态   | 进行中（`D8` 已批准；S0 旁路 spike **已通过**，S1–S3 **已落地**，当前 **S4**） |
-| 更新   | 2026-10-18                                                   |
+| 状态   | 进行中（`D8` 已批准；S0 旁路 spike **已通过**，S1–S4 **已落地**，S4 含 loader / SSR 收口） |
+| 更新   | 2026-10-19                                                   |
 | 何时读 | 执行本迁移前；想知道「改哪些文件、按什么顺序、什么算通过」时 |
 | 规模   | ~2.5k token                                                  |
 
@@ -60,7 +60,7 @@ apps/web/
 │   ├── router.tsx              # ⬜ 新增：createRouter(routeTree)
 │   ├── routeTree.gen.ts        # ⬜ 由插件自动生成，勿手改
 │   ├── routes/
-│   │   ├── __root.tsx          # ⬜ 新增：shell（原 Document.tsx）+ QueryClientProvider + ensureSession
+│   │   ├── __root.tsx          # ⬜ 新增：shell（原 Document.tsx）+ 会话 beforeLoad 注入路由 context
 │   │   ├── api/$.ts            # ⬜ 新增：Hono catch-all
 │   │   ├── dav/$.ts            # ⬜ P4
 │   │   └── …（原页面，按 §3 改名）
@@ -214,8 +214,16 @@ Hono 内部路径**保持 `/api` 前缀不变**：`routes/api/$.ts` 直接 `apiA
 | 3   | Solid rc.15 **已移除 `Suspense`**（`solid-js` 与 `@solidjs/web` 均不导出）→ `__root.tsx` 不再包 Suspense；`JSX.Element` 须 `import type { JSX } from "@solidjs/web"`（rc 线没有全局 JSX 命名空间）。                                                                                                    |
 | 4   | 服务端取 env 沿用 `src/server/env.server.ts`（`import "varlock/auto-load"` + `export { ENV as env } from "../env"`）：生成物实际在 `src/env.ts`，故相对路径是 `../env`（§6 原写作 `./env`）。                                                                                                             |
 | 5   | `routes/api/$.ts` 只声明 `server`，Start 会把该节点从**客户端**路由树剪除（`pruneServerOnlySubtrees`），客户端产物里没有对应 chunk —— Hono 挂载天然只存在于服务端。                                                                                                                                    |
-| 6   | **S2 的「页面改 `loader` + 缓存读取」尚未兑现**：13 个路由只做了 TanStack 路由外壳（`createFileRoute` / `useParams` / `useSearch`），数据仍在组件内用 `createSignal` + `createEffect` 直接调 `client.*`（如 `files-browser.tsx` 的 `client.file.list`）→ 首屏 SSR 目前只出壳。`@tanstack/solid-query` / `query-core` 仍留在依赖里但已无引用。 |
+| 6   | **S2 的「页面改 `loader` + 缓存读取」尚未兑现**（S4 已收口，见下）：13 个路由只做了 TanStack 路由外壳（`createFileRoute` / `useParams` / `useSearch`），数据仍在组件内用 `createSignal` + `createEffect` 直接调 `client.*` → 首屏 SSR 只出壳。`@tanstack/solid-query` / `query-core` 仍留在依赖里但已无引用。 |
 | 7   | **`/api/openapi.json` 的 500 是两个叠加原因**（S4 期间修复）：① `file.move` 的 `.route({ path: "/files/{nodeId}/move" })` 声明了动态参数，但 `moveInput` 是批量的 `{ nodeIds[], targetParentId? }`，`.input()` 里没有 `nodeId` → 生成器报「path 有动态参数时 input schema 必须为含全部动态参数的 required object」；改为集合式 `POST /files/move`（与 `remove` 一致）并同步改 `A3` §11.3。② 修完 ① 后暴露第二层：Varlock 的响应泄漏扫描（`patch-response.mjs`，对所有标记 sensitive 且 `preventLeaks=true` 的值做 `String.includes`）命中 `STORAGE_ROOT=storage` —— 而 "storage" 是 OpenAPI 文档里的常见子串（`storageKey`、连接 `type` 等），属误报；按 Varlock 官方语义（`@sensitive={preventLeaks=false}`：关闭响应泄漏拦截、日志脱敏仍生效）改 `apps/web/.env.schema`。 |
+
+### S4 结论（2026-10-19 落地）
+
+| #   | 结论                                                                                                                                                                                                                                                                                                                                                            |
+| --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 8   | **`#6` 收口：承载数据的页面改路由 `loader` + 首屏 SSR 真实数据**。① `/files/` 与 `/files/$` 共用 `src/lib/files-loader.ts` 的 `loadFiles(parentId)`（并行 `file.list` + `file.path`）；`/admin/users` 按 founder 角色装载 `fetchAdmins()`。② 会话由 `__root` 的 `beforeLoad` 服务端读 Cookie 解析后 `return { session }` 注入**路由 context**（`getRouter()` 每请求实例化 → SSR 安全），取代旧模块级 `ensureSession()` 单例；未登录访问受保护页 SSR 直接 307 到 `/login`。③ 取数口统一走 `src/server/fns.ts` 的 `createServerFn`：SSR 进程内直调 oRPC（`@orpc/server` 的 `call`），客户端导航走 serverFn HTTP。 |
+| 9   | **`createServerFn` 的 server-only import 会被剥离**：`src/server/fns.ts` 顶层 import `@MyDISK/api` 的 schema 与 router，`vite build` 客户端产物不含之（Start 编译器剥离 caller 模块的 handler 体 + import-protection 校验通过），无需动态 `import()`。附带：`.validator(zod)` 的调用签名是 `fn({ data })`（不是 `fn(data)`）。                              |
+| 10  | **验证缺口**：本机 PostgreSQL `:5432` 未运行（`ECONNREFUSED`）→「**登录态首屏出真实文件数据**」未实测。已实测：`bun run check-types` / `bunx oxlint` / `bunx vite build`（client + SSR）全绿；`GET /files`（无会话）SSR **307 → `/login`**；`/login` 脱水状态含 `b:{session:null}`（证明 `beforeLoad` 服务端解析会话并注入 context）。需 DB / Redis 起来后补登录态用例。 |
 
 ## 8. 回滚
 

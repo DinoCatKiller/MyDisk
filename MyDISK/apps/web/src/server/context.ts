@@ -9,16 +9,21 @@ export type CreateContextOptions = {
   context: HonoContext;
 };
 
-function getClientIp(context: HonoContext): string | null {
-  const forwarded = context.req.header("x-forwarded-for");
+function getClientIp(headers: Headers): string | null {
+  const forwarded = headers.get("x-forwarded-for");
   if (forwarded) {
     return forwarded.split(",")[0]?.trim() ?? null;
   }
-  return context.req.header("x-real-ip") ?? null;
+  return headers.get("x-real-ip") ?? null;
 }
 
-export async function createContext({ context }: CreateContextOptions): Promise<ApiContext> {
-  const headers = context.req.raw.headers;
+/**
+ * 由请求头构造 oRPC 上下文。
+ *
+ * Hono 原生路由与 SSR loader（`fns.ts`）共用：后者拿不到 Hono context，
+ * 只能拿到原始 `Headers`。
+ */
+export async function createContextFromHeaders(headers: Headers): Promise<ApiContext> {
   const session = await auth.api.getSession({ headers });
 
   return {
@@ -32,10 +37,14 @@ export async function createContext({ context }: CreateContextOptions): Promise<
     storageRoot: serverConfig.storageRoot,
     signingSecret: env.BETTER_AUTH_SECRET,
     requestInfo: {
-      ip: getClientIp(context),
-      userAgent: context.req.header("user-agent") ?? null,
+      ip: getClientIp(headers),
+      userAgent: headers.get("user-agent") ?? null,
     },
   };
+}
+
+export async function createContext({ context }: CreateContextOptions): Promise<ApiContext> {
+  return createContextFromHeaders(context.req.raw.headers);
 }
 
 export type Context = Awaited<ReturnType<typeof createContext>>;

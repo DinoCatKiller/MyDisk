@@ -1,5 +1,5 @@
-import { useNavigate } from "@tanstack/solid-router";
-import { createSignal, onSettled } from "solid-js";
+import { useRouteContext } from "@tanstack/solid-router";
+import type { Accessor } from "solid-js";
 
 import { client } from "~/utils/orpc";
 
@@ -14,39 +14,28 @@ export type SessionUser = {
   lastLoginAt?: string | Date | null;
 };
 
-const [user, setUser] = createSignal<SessionUser | null>(null);
-const [pending, setPending] = createSignal(true);
+/**
+ * 根路由 `beforeLoad` 注入的路由上下文（`D8`）。
+ *
+ * 关键点：`getRouter()` 由 Start **按请求调用**，路由 context 天然跟随请求实例，
+ * 因此会话放在这里不会在 SSR 期间跨请求串号（旧实现的模块级 signal 会）。
+ */
+export type RouterContext = {
+  session: SessionUser | null;
+};
 
-/** 会话只拉取一次，多个页面共享同一 promise */
-let sessionPromise: Promise<SessionUser | null> | null = null;
-
-export const sessionUser = user;
-export const sessionPending = pending;
-
-export function isFounder(): boolean {
-  return user()?.role === "founder";
+/** 当前会话；随 `beforeLoad` / `router.invalidate()` 响应式更新 */
+export function useSession(): Accessor<SessionUser | null> {
+  return useRouteContext({
+    from: "__root__",
+    select: (context) => context.session,
+  });
 }
 
-export async function refreshSession(): Promise<SessionUser | null> {
-  setPending(true);
-  try {
-    const data = await client.auth.getSession();
-    const next = (data?.user as SessionUser | undefined) ?? null;
-    setUser(next);
-    sessionPromise = Promise.resolve(next);
-    return next;
-  } catch {
-    setUser(null);
-    sessionPromise = Promise.resolve(null);
-    return null;
-  } finally {
-    setPending(false);
-  }
-}
-
-export function ensureSession(): Promise<SessionUser | null> {
-  sessionPromise ??= refreshSession();
-  return sessionPromise;
+/** 是否创始人管理员 */
+export function useIsFounder(): Accessor<boolean> {
+  const session = useSession();
+  return () => session()?.role === "founder";
 }
 
 export async function signIn(input: {
@@ -55,27 +44,9 @@ export async function signIn(input: {
   rememberMe?: boolean;
 }): Promise<{ mustChangePassword: boolean }> {
   const result = await client.auth.signIn(input);
-  await refreshSession();
   return { mustChangePassword: Boolean(result?.mustChangePassword) };
 }
 
 export async function signOut(): Promise<void> {
-  try {
-    await client.auth.signOut();
-  } finally {
-    setUser(null);
-    sessionPromise = Promise.resolve(null);
-  }
-}
-
-/** 受保护页面使用：未登录时跳转登录页 */
-export function useRequireAuth(): void {
-  const navigate = useNavigate();
-  onSettled(() => {
-    void ensureSession().then((current) => {
-      if (!current) {
-        navigate({ to: "/login", replace: true });
-      }
-    });
-  });
+  await client.auth.signOut();
 }

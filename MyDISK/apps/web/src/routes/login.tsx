@@ -1,5 +1,5 @@
-import { createFileRoute, useNavigate } from "@tanstack/solid-router";
-import { For, Show, createSignal, onSettled } from "solid-js";
+import { createFileRoute, useNavigate, useRouter } from "@tanstack/solid-router";
+import { For, Show, createSignal } from "solid-js";
 
 import { Alert } from "~/components/ui/alert";
 import { Button } from "~/components/ui/button";
@@ -11,7 +11,7 @@ import {
   ShareIcon,
 } from "~/components/ui/icons";
 import { TextField } from "~/components/ui/input";
-import { ensureSession, signIn } from "~/lib/session";
+import { signIn } from "~/lib/session";
 
 import styles from "./login.module.css";
 
@@ -46,18 +46,11 @@ export const Route = createFileRoute("/login")({
 
 function LoginPage() {
   const navigate = useNavigate();
+  const router = useRouter();
   const [email, setEmail] = createSignal("");
   const [password, setPassword] = createSignal("");
   const [error, setError] = createSignal("");
   const [submitting, setSubmitting] = createSignal(false);
-
-  onSettled(() => {
-    void ensureSession().then((current) => {
-      if (current) {
-        navigate({ to: "/files", replace: true });
-      }
-    });
-  });
 
   const handleSubmit = async (event: Event) => {
     event.preventDefault();
@@ -78,6 +71,8 @@ function LoginPage() {
         password: password(),
         rememberMe: true,
       });
+      // 让根路由 beforeLoad 重新解析会话，向后续页面注入新会话（`D8`）
+      await router.invalidate();
       navigate(
         result.mustChangePassword
           ? { to: "/settings/security", search: { force: true }, replace: true }
