@@ -41,43 +41,43 @@
 
 > 选型**理由与备选**在 ADR（`D1` 通用栈 / `D2` 前端）；本表只给版本基线。改基线属技术栈变更，需先写 ADR。
 
-| 层             | 选型                                             | 版本             | 备注                                               |
-| -------------- | ------------------------------------------------ | ---------------- | -------------------------------------------------- |
-| 运行时         | Bun                                              | 1.3.14           | 锁死，见 `packageManager`                          |
-| 前端框架       | SolidJS / @solidjs/web                           | 2.0.0-rc.15      | rc 线                                              |
-| 前端路由       | @tanstack/solid-router                           | 2.0.0-rc.8       | TanStack Router 文件式路由                         |
-| 构建           | Vite                                             | 8.3.4            | rolldown 内核                                      |
-| SSR / 部署适配 | TanStack Start（Vite 插件）                      | 2.0.0-rc.8       | 单 app 同源；Hono 作为 `/api` 子系统挂在其内       |
-| 样式           | Tailwind CSS v4 + CSS Modules                    | 4.3.3            | v4 用 `@theme` 定义令牌，不用 `tailwind.config.js` |
-| 图标           | lucide-solid                                     | latest           | 不可用时回退内联 SVG                               |
-| 数据请求       | oRPC（`@orpc/client` + `RPCLink`）               | 1.15             | 前端直接调过程，不经 `@orpc/tanstack-query`        |
+| 层             | 选型                                             | 版本             | 备注                                                                |
+| -------------- | ------------------------------------------------ | ---------------- | ------------------------------------------------------------------- |
+| 运行时         | Bun                                              | 1.3.14           | 锁死，见 `packageManager`                                           |
+| 前端框架       | SolidJS / @solidjs/web                           | 2.0.0-rc.15      | rc 线                                                               |
+| 前端路由       | @tanstack/solid-router                           | 2.0.0-rc.8       | TanStack Router 文件式路由                                          |
+| 构建           | Vite                                             | 8.3.4            | rolldown 内核                                                       |
+| SSR / 部署适配 | TanStack Start（Vite 插件）                      | 2.0.0-rc.8       | 单 app 同源；Hono 作为 `/api` 子系统挂在其内                        |
+| 样式           | Tailwind CSS v4 + CSS Modules                    | 4.3.3            | v4 用 `@theme` 定义令牌，不用 `tailwind.config.js`                  |
+| 图标           | lucide-solid                                     | latest           | 不可用时回退内联 SVG                                                |
+| 数据请求       | oRPC（`@orpc/client` + `RPCLink`）               | 1.15             | 前端直接调过程，不经 `@orpc/tanstack-query`                         |
 | 数据装载       | 路由 `loader` + 根 `beforeLoad` 注入会话         | —                | 首屏 SSR 直出（`D8`）；不引入 `@tanstack/solid-query`（依赖待清理） |
-| 后端           | Hono                                             | 4.13.7           |                                                    |
-| 校验           | Zod                                              | 4.5.4            | `@orpc/zod` Zod4 转换器                            |
-| ORM            | Drizzle ORM + drizzle-kit                        | 0.45.2 / 0.31.10 |                                                    |
-| 数据库         | PostgreSQL（`pg` 驱动）                          | 8.23             | 库 `pstorage`                                      |
-| 队列           | BullMQ + ioredis                                 | latest           |                                                    |
-| 认证           | Better-Auth                                      | 1.7.3            | **关闭公开注册**（`D4`）                           |
-| 邮件           | nodemailer（SMTP）                               | latest           | 配置落库、可在线改                                 |
-| OpenAPI        | @orpc/openapi + @orpc/zod                        | 1.15             | 输出 OpenAPI 3.1 + `/api/reference`（`D5`）        |
-| 对象存储 SDK   | cos-nodejs-sdk-v5 / ali-oss / @aws-sdk/client-s3 | latest           | 按需懒加载                                         |
-| 压缩           | archiver（服务端）/ zip.js（客户端）             | latest           |                                                    |
-| 文档解析       | mammoth / exceljs / pdf.js                       | latest           |                                                    |
-| CLI            | yargs + @clack/prompts                           | latest           |                                                    |
-| WebDAV         | 自研（基于 Hono 挂载 `/dav`）                    | —                | 见 `A6` §6.8                                       |
+| 后端           | Hono                                             | 4.13.7           |                                                                     |
+| 校验           | Zod                                              | 4.5.4            | `@orpc/zod` Zod4 转换器                                             |
+| ORM            | Drizzle ORM + drizzle-kit                        | 0.45.2 / 0.31.10 |                                                                     |
+| 数据库         | PostgreSQL（`pg` 驱动）                          | 8.23             | 库 `pstorage`                                                       |
+| 队列           | BullMQ + ioredis                                 | latest           |                                                                     |
+| 认证           | Better-Auth                                      | 1.7.3            | **关闭公开注册**（`D4`）                                            |
+| 邮件           | nodemailer（SMTP）                               | latest           | 配置落库、可在线改                                                  |
+| OpenAPI        | @orpc/openapi + @orpc/zod                        | 1.15             | 输出 OpenAPI 3.1 + `/api/reference`（`D5`）                         |
+| 对象存储 SDK   | cos-nodejs-sdk-v5 / ali-oss / @aws-sdk/client-s3 | latest           | 按需懒加载                                                          |
+| 压缩           | archiver（服务端）/ zip.js（客户端）             | latest           |                                                                     |
+| 文档解析       | mammoth / exceljs / pdf.js                       | latest           |                                                                     |
+| CLI            | yargs + @clack/prompts                           | latest           |                                                                     |
+| WebDAV         | 自研（基于 Hono 挂载 `/dav`）                    | —                | 见 `A6` §6.8                                                        |
 
 ## 4. 自研边界
 
-| 领域                                      | 自研                                 | 用现成                        |
-| ----------------------------------------- | ------------------------------------ | ----------------------------- |
-| 前端基础组件（Button/Input/Modal/Table…） | ✅ 自研（Tailwind v4 + CSS Modules） | 弃 HeroUI（React-only，`D2`） |
-| 数据装载层                                | 路由 `loader`（SSR 时服务端进程内直调 oRPC） | ✅ oRPC                |
-| 存储抽象                                  | ✅ `packages/storage`（`A4`）        | 云驱动用官方 SDK              |
-| WebDAV 协议                               | ✅ 自研（`A6` §6.8）                 | —                             |
-| ORM / 迁移                                | —                                    | ✅ Drizzle + drizzle-kit      |
-| 认证                                      | 封装为 oRPC（`A3` §3）               | ✅ Better-Auth                |
-| 队列 / 发信                               | 编排自研                             | ✅ BullMQ、nodemailer         |
-| AI 能力                                   | ❌ 不引入                            | —（`D5`）                     |
+| 领域                                      | 自研                                         | 用现成                        |
+| ----------------------------------------- | -------------------------------------------- | ----------------------------- |
+| 前端基础组件（Button/Input/Modal/Table…） | ✅ 自研（Tailwind v4 + CSS Modules）         | 弃 HeroUI（React-only，`D2`） |
+| 数据装载层                                | 路由 `loader`（SSR 时服务端进程内直调 oRPC） | ✅ oRPC                       |
+| 存储抽象                                  | ✅ `packages/storage`（`A4`）                | 云驱动用官方 SDK              |
+| WebDAV 协议                               | ✅ 自研（`A6` §6.8）                         | —                             |
+| ORM / 迁移                                | —                                            | ✅ Drizzle + drizzle-kit      |
+| 认证                                      | 封装为 oRPC（`A3` §3）                       | ✅ Better-Auth                |
+| 队列 / 发信                               | 编排自研                                     | ✅ BullMQ、nodemailer         |
+| AI 能力                                   | ❌ 不引入                                    | —（`D5`）                     |
 
 ## 相关
 

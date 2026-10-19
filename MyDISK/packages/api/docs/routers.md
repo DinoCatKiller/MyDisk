@@ -293,18 +293,18 @@ export const list = protectedProcedure
 
 ### 11.3 标签与路径规范
 
-| tag          | 路径前缀                    | 示例                                                  |
-| ------------ | --------------------------- | ----------------------------------------------------- |
-| `system`     | `/system`                   | `GET /system/settings`                                |
-| `auth`       | `/auth`                     | `POST /auth/sign-in`、`POST /auth/admins`             |
-| `connection` | `/connections`              | `POST /connections/{id}/default`                      |
+| tag          | 路径前缀                    | 示例                                                                   |
+| ------------ | --------------------------- | ---------------------------------------------------------------------- |
+| `system`     | `/system`                   | `GET /system/settings`                                                 |
+| `auth`       | `/auth`                     | `POST /auth/sign-in`、`POST /auth/admins`                              |
+| `connection` | `/connections`              | `POST /connections/{id}/default`                                       |
 | `file`       | `/files`                    | `POST /files/move`、`POST /files/remove`、`POST /files/batch-download` |
-| `upload`     | `/uploads`                  | `POST /uploads/init`、`POST /uploads/{id}/complete`   |
-| `share`      | `/shares`、`/public/shares` | 管理端与公开访问分离                                  |
-| `task`       | `/tasks`                    | `GET /tasks/{id}`                                     |
-| `preview`    | `/preview`                  | `GET /preview/{nodeId}/url`                           |
-| `smtp`       | `/smtp`                     | `POST /smtp/test`                                     |
-| `webdav`     | `/webdav`                   | `POST /webdav/tokens`                                 |
+| `upload`     | `/uploads`                  | `POST /uploads/init`、`POST /uploads/{id}/complete`                    |
+| `share`      | `/shares`、`/public/shares` | 管理端与公开访问分离                                                   |
+| `task`       | `/tasks`                    | `GET /tasks/{id}`                                                      |
+| `preview`    | `/preview`                  | `GET /preview/{nodeId}/url`                                            |
+| `smtp`       | `/smtp`                     | `POST /smtp/test`                                                      |
+| `webdav`     | `/webdav`                   | `POST /webdav/tokens`                                                  |
 
 ### 11.4 二进制接口（手写 spec 补充）
 

@@ -21,7 +21,7 @@
 | `src/commands/{passwd,admin,db,serve}.ts` | `passwd` / `admin:add\|list\|remove` / `db:push\|generate\|studio` / `serve`、`openapi`                                                  |
 | `src/lib/bootstrap.ts`                    | `makeDb`/`makeAuth`/`createFounder`/`ensureLocalConnection`/`writeInitialSettings`/`checkDatabase`/`pushSchema`                          |
 | `src/lib/cli-sh.ts`                       | 幂等生成项目根 `cli.sh`/`cli.ps1`（已存在则跳过）                                                                                        |
-| `src/lib/env.ts`                          | `loadCliEnv`：读 `apps/web/.env`（单 app，`D8`）且真实环境变量可覆盖；`maskDatabaseUrl` 打印脱敏                                           |
+| `src/lib/env.ts`                          | `loadCliEnv`：读 `apps/web/.env`（单 app，`D8`）且真实环境变量可覆盖；`maskDatabaseUrl` 打印脱敏                                         |
 | `src/lib/prompts.ts`                      | `DEFAULT_FOUNDER`、`askText`/`askPassword`/`askConfirm`、`pickMainMenuAction`                                                            |
 
 ## 必须知道的三个设计决定

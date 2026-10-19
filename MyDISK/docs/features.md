@@ -24,15 +24,15 @@
 | 存储抽象               | `packages/storage`                                               | ✅ P0 | `A4`            |
 | 认证与管理员           | `packages/auth` + `packages/api`                                 | ✅ P1 | `A3` §3 ｜ `D4` |
 | 系统设置 / 审计        | `packages/api`                                                   | ✅ P1 | `A3` §2         |
-| 上传（分片/续传/秒传） | `apps/web` + `packages/api`                              | 🚧 P2 | 本文 §2         |
+| 上传（分片/续传/秒传） | `apps/web` + `packages/api`                                      | 🚧 P2 | 本文 §2         |
 | 文件管理 / 回收站      | `packages/api` + `web`                                           | 🚧 P2 | 本文 §3         |
 | 分享                   | `packages/api` + `web`                                           | ⬜ P3 | 本文 §4         |
 | 多连接与同步           | `packages/api` + `queue`                                         | ⬜ P3 | 本文 §5         |
 | 压缩 / 解压            | `queue` + `web`                                                  | ⬜ P3 | 本文 §6         |
-| 预览                   | `apps/web`                                            | ⬜ P3 | 本文 §7         |
-| WebDAV                 | `apps/web`（+ ⬜ `packages/webdav`）                          | ⬜ P4 | 本文 §8         |
+| 预览                   | `apps/web`                                                       | ⬜ P3 | 本文 §7         |
+| WebDAV                 | `apps/web`（+ ⬜ `packages/webdav`）                             | ⬜ P4 | 本文 §8         |
 | 邮件（SMTP）           | `packages/mail`（transporter + 模板已落地，配置落库 / 收口待做） | 🚧 P4 | 本文 §9         |
-| OpenAPI 文档           | `apps/web`                                                    | 🚧 P1 | `A3` §11        |
+| OpenAPI 文档           | `apps/web`                                                       | 🚧 P1 | `A3` §11        |
 
 ## 2. 上传：分片 / 断点续传 / 暂停停止 / 刷新续传
 

@@ -19,13 +19,8 @@
   "dependencies": {
     "@MyDISK/auth": "workspace:*",
     "@MyDISK/db": "workspace:*",
-    "@MyDISK/mail": "workspace:*",
-    "@MyDISK/queue": "workspace:*",
     "@MyDISK/storage": "workspace:*",
-    "@orpc/client": "catalog:",
-    "@orpc/openapi": "catalog:",
     "@orpc/server": "catalog:",
-    "@orpc/zod": "catalog:",
     "drizzle-orm": "^0.45.2",
     "zod": "catalog:"
   },

@@ -1,6 +1,8 @@
 import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
+import { DEFAULT_CHUNK_SIZE } from "@MyDISK/api/lib/files";
+
 export type CliEnv = {
   projectRoot: string;
   NODE_ENV: string;
@@ -64,7 +66,7 @@ export function loadCliEnv(): CliEnv {
     BETTER_AUTH_URL: pick("BETTER_AUTH_URL", "http://localhost:3000"),
     STORAGE_ROOT: pick("STORAGE_ROOT", ""),
     ENCRYPTION_KEY: pick("ENCRYPTION_KEY", "my-disk-dev-only-encryption-key-01"),
-    UPLOAD_CHUNK_SIZE: Number(pick("UPLOAD_CHUNK_SIZE", "8388608")),
+    UPLOAD_CHUNK_SIZE: Number(pick("UPLOAD_CHUNK_SIZE", String(DEFAULT_CHUNK_SIZE))),
   };
 }
 

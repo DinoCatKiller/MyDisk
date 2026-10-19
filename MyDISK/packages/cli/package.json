@@ -12,6 +12,7 @@
     "dev": "bun run src/index.ts"
   },
   "dependencies": {
+    "@MyDISK/api": "workspace:*",
     "@MyDISK/auth": "workspace:*",
     "@MyDISK/db": "workspace:*",
     "@MyDISK/storage": "workspace:*",

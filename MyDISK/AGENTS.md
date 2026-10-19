@@ -61,17 +61,17 @@
 
 ### 各模块门面（先读 README 再进它的 `docs/`）
 
-| ID  | 标题                                          | 路径                                                       | 何时读                          | 规模  | 状态 |
-| --- | --------------------------------------------- | ---------------------------------------------------------- | ------------------------------- | ----- | ---- |
+| ID  | 标题                                                                   | 路径                                                       | 何时读                                          | 规模  | 状态 |
+| --- | ---------------------------------------------------------------------- | ---------------------------------------------------------- | ----------------------------------------------- | ----- | ---- |
 | —   | `web` 门面：TanStack Start 单 app（页面路由 + Hono `/api` 子系统装配） | [`apps/web/README.md`](apps/web/README.md)                 | 改前端页面 / 组件 / 样式、改 API 装配与二进制面 | ~1.2k | ✅   |
-| —   | `@MyDISK/api` 门面：oRPC 路由集合             | [`packages/api/README.md`](packages/api/README.md)         | 加接口、改权限中间件            | ~0.9k | ✅   |
-| —   | `@MyDISK/auth` 门面：Better-Auth 封装         | [`packages/auth/README.md`](packages/auth/README.md)       | 改登录 / 会话 / 管理员体系      | ~0.9k | ✅   |
-| —   | `@MyDISK/db` 门面：Drizzle schema 与客户端    | [`packages/db/README.md`](packages/db/README.md)           | 改表结构、迁移、连接            | ~0.9k | ✅   |
-| —   | `@MyDISK/storage` 门面：存储驱动抽象          | [`packages/storage/README.md`](packages/storage/README.md) | 加驱动、改物理键 / 加密         | ~0.9k | ✅   |
-| —   | `@MyDISK/queue` 门面：BullMQ 队列             | [`packages/queue/README.md`](packages/queue/README.md)     | 加队列 / worker 任务            | ~0.7k | ✅   |
-| —   | `@MyDISK/mail` 门面：SMTP 发信                | [`packages/mail/README.md`](packages/mail/README.md)       | 改邮件模板 / 发信流程           | ~0.7k | ✅   |
-| —   | `@MyDISK/cli` 门面：安装与运维命令            | [`packages/cli/README.md`](packages/cli/README.md)         | 加 CLI 子命令、改 install 流程  | ~0.9k | ✅   |
-| —   | `@MyDISK/config` 门面：tsconfig 基线          | [`packages/config/README.md`](packages/config/README.md)   | 改 TS 编译选项                  | ~0.4k | ✅   |
+| —   | `@MyDISK/api` 门面：oRPC 路由集合                                      | [`packages/api/README.md`](packages/api/README.md)         | 加接口、改权限中间件                            | ~0.9k | ✅   |
+| —   | `@MyDISK/auth` 门面：Better-Auth 封装                                  | [`packages/auth/README.md`](packages/auth/README.md)       | 改登录 / 会话 / 管理员体系                      | ~0.9k | ✅   |
+| —   | `@MyDISK/db` 门面：Drizzle schema 与客户端                             | [`packages/db/README.md`](packages/db/README.md)           | 改表结构、迁移、连接                            | ~0.9k | ✅   |
+| —   | `@MyDISK/storage` 门面：存储驱动抽象                                   | [`packages/storage/README.md`](packages/storage/README.md) | 加驱动、改物理键 / 加密                         | ~0.9k | ✅   |
+| —   | `@MyDISK/queue` 门面：BullMQ 队列                                      | [`packages/queue/README.md`](packages/queue/README.md)     | 加队列 / worker 任务                            | ~0.7k | ✅   |
+| —   | `@MyDISK/mail` 门面：SMTP 发信                                         | [`packages/mail/README.md`](packages/mail/README.md)       | 改邮件模板 / 发信流程                           | ~0.7k | ✅   |
+| —   | `@MyDISK/cli` 门面：安装与运维命令                                     | [`packages/cli/README.md`](packages/cli/README.md)         | 加 CLI 子命令、改 install 流程                  | ~0.9k | ✅   |
+| —   | `@MyDISK/config` 门面：tsconfig 基线                                   | [`packages/config/README.md`](packages/config/README.md)   | 改 TS 编译选项                                  | ~0.4k | ✅   |
 
 ### 决策记录（只增不改）
 

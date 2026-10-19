@@ -1,12 +1,12 @@
 # web · 单 app（TanStack Start 前端 + Hono `/api` 子系统）
 
-|        |                                                                                                                                                             |
-| ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 状态   | ✅ 已落地（P1 骨架、P2 文件管理器与上传抽屉；`D8` 架构迁移 S1–S4 已合入，含 loader / SSR 数据装载）                                                          |
+|        |                                                                                                                                                                           |
+| ------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 状态   | ✅ 已落地（P1 骨架、P2 文件管理器与上传抽屉；`D8` 架构迁移 S1–S4 已合入，含 loader / SSR 数据装载）                                                                       |
 | 边界   | 负责页面/路由/组件/样式、客户端会话状态、oRPC 客户端，以及服务端装配（Hono `/api` 子系统、二进制面、OpenAPI）；**不含**业务数据访问逻辑（在 `A3`）；契约与视觉规范在 `A5` |
-| 上游   | `@MyDISK/api`（`AppRouterClient` 类型 + `/api/rpc`）、`@MyDISK/auth`（服务端实例 + 浏览器端 client）、`@MyDISK/db`（服务端连接）                                   |
-| 下游   | 无（唯一进程级 app：`apps/*` 只剩它）                                                                                                                       |
-| 何时读 | 改前端页面 / 组件 / 样式，或改 API 装配 / 二进制面 / 生产入口                                                                                                |
+| 上游   | `@MyDISK/api`（`AppRouterClient` 类型 + `/api/rpc`）、`@MyDISK/auth`（服务端实例 + 浏览器端 client）、`@MyDISK/db`（服务端连接）                                          |
+| 下游   | 无（唯一进程级 app：`apps/*` 只剩它）                                                                                                                                     |
+| 何时读 | 改前端页面 / 组件 / 样式，或改 API 装配 / 二进制面 / 生产入口                                                                                                             |
 
 ## 这个 crate 是什么
 
@@ -14,25 +14,25 @@
 
 ## 核心内容
 
-| 项                          | 说明                                                                                                                                                                             |
-| --------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/router.tsx`            | `getRouter()`：TanStack Router，路由树由 `src/routeTree.gen.ts` 编译期生成；`context: { session: null }` 为占位，实际会话由 `__root` 的 `beforeLoad` 注入（`getRouter()` 每请求实例化） |
-| `src/routes/__root.tsx`     | 根路由：`shellComponent`（`html`/`head` + `<HeadContent />`/`<Scripts />`）；`beforeLoad` 服务端解析会话（`fetchSession()`）注入路由 context，未登录抛 `redirect({ to: "/login" })`、已登录访问 `/login` 抛 `redirect({ to: "/files" })` |
-| `src/routes/`               | 页面：`index`(跳 `/files`)、`login`、`files/index`(`/files/`)、`files/$`(`/files/$`，参数 `_splat`)、`trash`、`favorites`、`shares`、`settings/{index,security,storage}`、`admin/users` |
-| `src/routes/api/$.ts`       | **仅服务端**：`handlers.ANY` 里把 Hono 直挂（`apiApp.fetch(request)`，不改写 path）                                                                                               |
-| `src/server/`               | Hono 装配：`app.ts`(`createApiApp()`)、`context.ts`、`config.ts`、`services.ts`、`openapi.ts`、`env.server.ts`、`routes/{raw,upload-chunk}.ts`                                     |
-| `scripts/start.mjs`         | 生产入口（`bun run start`）：`Bun.serve` 先服务 `dist/client` 静态资源，未命中再交给 `dist/server/server.js` 的 SSR handler                                                       |
-| `src/components/layout/`    | `app-shell`(外壳/导航)、`protected`(登录守卫)、`placeholder`(占位)                                                                                                               |
-| `src/components/ui/`        | 自研组件：`alert`/`button`/`card`/`input`/`icons`                                                                                                                                |
-| `src/components/file/`      | 文件区：`files-browser`(主页容器)、`toolbar`(上传/文件夹/新建/搜索/排序/视图)、`breadcrumb`、`file-list`、`file-row`、`drop-zone`(全窗口拖拽)                                      |
-| `src/components/upload/`    | `upload-drawer`(底部上传抽屉：队列 + 单条进度 + 暂停/继续/停止 + 全局控制)                                                                                                        |
-| `src/lib/upload/`           | 上传编排（`D7`）：`item.machine.ts`(每文件机) / `pool.machine.ts`(池编排器) / `store.ts`(模块级单例订阅层) / `idb.ts`(本地持久化) / `transport.ts`(XHR 分片泵) / `fingerprint.ts` |
-| `src/lib/format.ts`         | 展示辅助：字节/时间格式化                                                                                                                                                        |
-| `src/server/fns.ts`         | **仅服务端**：`createServerFn` 封的取数口（`fetchSession`/`fetchFileList`/`fetchFilePath`/`fetchAdmins`）——SSR 时进程内直调 oRPC（`@orpc/server` 的 `call`），客户端导航时走 serverFn HTTP；`loader` 经它取数 |
-| `src/lib/files-loader.ts`   | `/files/` 与 `/files/$` 共用 `loader`：`loadFiles(parentId)` 并行取 `file.list` + `file.path`，返回 `{ parentId, items, path, error }` |
-| `src/lib/session.ts`        | 会话读取：`useSession()` / `useIsFounder()`（取 `__root` 路由 context），`signIn` / `signOut`（oRPC），`SessionUser` / `RouterContext` 类型 |
-| `src/utils/orpc.ts`         | `RPCLink`(打 `/api/rpc`) + `createORPCClient`；同源 + `credentials:"include"`                                                                                                     |
-| `src/env.ts`                | varlock 生成：`NODE_ENV` / `BETTER_AUTH_URL` / `API_REFERENCE_ENABLED` / `WEBDAV_ENABLED`（服务端私密变量经 `src/server/env.server.ts` 取用）                                      |
+| 项                        | 说明                                                                                                                                                                                                                                     |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/router.tsx`          | `getRouter()`：TanStack Router，路由树由 `src/routeTree.gen.ts` 编译期生成；`context: { session: null }` 为占位，实际会话由 `__root` 的 `beforeLoad` 注入（`getRouter()` 每请求实例化）                                                  |
+| `src/routes/__root.tsx`   | 根路由：`shellComponent`（`html`/`head` + `<HeadContent />`/`<Scripts />`）；`beforeLoad` 服务端解析会话（`fetchSession()`）注入路由 context，未登录抛 `redirect({ to: "/login" })`、已登录访问 `/login` 抛 `redirect({ to: "/files" })` |
+| `src/routes/`             | 页面：`index`(跳 `/files`)、`login`、`files/index`(`/files/`)、`files/$`(`/files/$`，参数 `_splat`)、`trash`、`favorites`、`shares`、`settings/{index,security,storage}`、`admin/users`                                                  |
+| `src/routes/api/$.ts`     | **仅服务端**：`handlers.ANY` 里把 Hono 直挂（`apiApp.fetch(request)`，不改写 path）                                                                                                                                                      |
+| `src/server/`             | Hono 装配：`app.ts`(`createApiApp()`)、`context.ts`、`config.ts`、`services.ts`、`openapi.ts`、`env.server.ts`、`routes/{raw,upload-chunk}.ts`                                                                                           |
+| `scripts/start.mjs`       | 生产入口（`bun run start`）：`Bun.serve` 先服务 `dist/client` 静态资源，未命中再交给 `dist/server/server.js` 的 SSR handler                                                                                                              |
+| `src/components/layout/`  | `app-shell`(外壳/导航)、`protected`(登录守卫)、`placeholder`(占位)                                                                                                                                                                       |
+| `src/components/ui/`      | 自研组件：`alert`/`button`/`card`/`input`/`icons`                                                                                                                                                                                        |
+| `src/components/file/`    | 文件区：`files-browser`(主页容器)、`toolbar`(上传/文件夹/新建/搜索/排序/视图)、`breadcrumb`、`file-list`、`file-row`、`drop-zone`(全窗口拖拽)                                                                                            |
+| `src/components/upload/`  | `upload-drawer`(底部上传抽屉：队列 + 单条进度 + 暂停/继续/停止 + 全局控制)                                                                                                                                                               |
+| `src/lib/upload/`         | 上传编排（`D7`）：`item.machine.ts`(每文件机) / `pool.machine.ts`(池编排器) / `store.ts`(模块级单例订阅层) / `idb.ts`(本地持久化) / `transport.ts`(XHR 分片泵) / `fingerprint.ts`                                                        |
+| `src/lib/format.ts`       | 展示辅助：字节/时间格式化                                                                                                                                                                                                                |
+| `src/server/fns.ts`       | **仅服务端**：`createServerFn` 封的取数口（`fetchSession`/`fetchFileList`/`fetchFilePath`/`fetchAdmins`）——SSR 时进程内直调 oRPC（`@orpc/server` 的 `call`），客户端导航时走 serverFn HTTP；`loader` 经它取数                            |
+| `src/lib/files-loader.ts` | `/files/` 与 `/files/$` 共用 `loader`：`loadFiles(parentId)` 并行取 `file.list` + `file.path`，返回 `{ parentId, items, path, error }`                                                                                                   |
+| `src/lib/session.ts`      | 会话读取：`useSession()` / `useIsFounder()`（取 `__root` 路由 context），`signIn` / `signOut`（oRPC），`SessionUser` / `RouterContext` 类型                                                                                              |
+| `src/utils/orpc.ts`       | `RPCLink`(打 `/api/rpc`) + `createORPCClient`；同源 + `credentials:"include"`                                                                                                                                                            |
+| `src/env.ts`              | varlock 生成：`NODE_ENV` / `BETTER_AUTH_URL` / `API_REFERENCE_ENABLED` / `WEBDAV_ENABLED`（服务端私密变量经 `src/server/env.server.ts` 取用）                                                                                            |
 
 ## 必须知道的四个设计决定
 

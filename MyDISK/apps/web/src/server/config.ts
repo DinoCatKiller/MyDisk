@@ -1,5 +1,7 @@
 import { isAbsolute, resolve } from "node:path";
 
+import { DEFAULT_CHUNK_SIZE } from "@MyDISK/api/lib/files";
+
 import { env } from "./env.server";
 
 /** 项目根目录：apps/web/src/server → 上溯四级 */
@@ -16,11 +18,11 @@ function resolveStorageRoot(raw: string): string {
 
 export const serverConfig = {
   projectRoot,
-  port: Number(process.env.PORT ?? 3000),
+  port: env.PORT,
   redisUrl: env.REDIS_URL || "redis://127.0.0.1:6379",
   /** 本地存储根：默认 <项目根>/storage */
   storageRoot: resolveStorageRoot(env.STORAGE_ROOT),
-  uploadChunkSize: env.UPLOAD_CHUNK_SIZE || 8 * 1024 * 1024,
+  uploadChunkSize: env.UPLOAD_CHUNK_SIZE || DEFAULT_CHUNK_SIZE,
   encryptionKey: env.ENCRYPTION_KEY,
   apiReferenceEnabled: env.API_REFERENCE_ENABLED,
   webdavEnabled: env.WEBDAV_ENABLED,

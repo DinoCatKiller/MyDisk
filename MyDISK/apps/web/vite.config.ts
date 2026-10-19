@@ -46,7 +46,7 @@ export default defineConfig({
     port: 3000,
   },
   ssr: {
-    noExternal: ["solid-js", /^@solidjs\//, "@tanstack/solid-query"],
+    noExternal: ["solid-js", /^@solidjs\//],
   },
   resolve: {
     tsconfigPaths: true,

@@ -1,4 +1,10 @@
-import { HeadContent, Outlet, Scripts, createRootRouteWithContext, redirect } from "@tanstack/solid-router";
+import {
+  HeadContent,
+  Outlet,
+  Scripts,
+  createRootRouteWithContext,
+  redirect,
+} from "@tanstack/solid-router";
 import type { JSX } from "@solidjs/web";
 
 import type { RouterContext } from "~/lib/session";
