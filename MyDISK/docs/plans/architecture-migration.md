@@ -1,13 +1,13 @@
 # GUI · 架构迁移计划（Start 单 app + Hono `/api` 子系统）
 
-|        |                                                                                            |
-| ------ | ------------------------------------------------------------------------------------------ |
-| ID     | `GUI`                                                                                      |
-| 类型   | 计划（执行前的改动面与验证门槛）                                                           |
-| 状态   | 进行中（`D8` 已批准；S0 旁路 spike **已通过**，S1–S4 **已落地**，S4 含 loader / SSR 收口） |
-| 更新   | 2026-10-19                                                                                 |
-| 何时读 | 执行本迁移前；想知道「改哪些文件、按什么顺序、什么算通过」时                               |
-| 规模   | ~2.5k token                                                                                |
+|        |                                                                                                        |
+| ------ | ------------------------------------------------------------------------------------------------------ |
+| ID     | `GUI`                                                                                                  |
+| 类型   | 计划（执行前的改动面与验证门槛）                                                                       |
+| 状态   | 进行中（`D8` 已批准；S0 旁路 spike **已通过**，S1–S4 **已落地**，S4 含 loader / SSR 收口与登录态实测） |
+| 更新   | 2026-10-20                                                                                             |
+| 何时读 | 执行本迁移前；想知道「改哪些文件、按什么顺序、什么算通过」时                                           |
+| 规模   | ~2.5k token                                                                                            |
 
 > 决策与理由 → `D8`。本文只写**怎么改**、**改哪些**、**什么算通过**。
 > 进度状态不写这里；开工后进 `S1`。
@@ -217,13 +217,15 @@ Hono 内部路径**保持 `/api` 前缀不变**：`routes/api/$.ts` 直接 `apiA
 | 6   | **S2 的「页面改 `loader` + 缓存读取」尚未兑现**（S4 已收口，见下）：13 个路由只做了 TanStack 路由外壳（`createFileRoute` / `useParams` / `useSearch`），数据仍在组件内用 `createSignal` + `createEffect` 直接调 `client.*` → 首屏 SSR 只出壳。`@tanstack/solid-query` / `query-core` 仍留在依赖里但已无引用。                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | 7   | **`/api/openapi.json` 的 500 是两个叠加原因**（S4 期间修复）：① `file.move` 的 `.route({ path: "/files/{nodeId}/move" })` 声明了动态参数，但 `moveInput` 是批量的 `{ nodeIds[], targetParentId? }`，`.input()` 里没有 `nodeId` → 生成器报「path 有动态参数时 input schema 必须为含全部动态参数的 required object」；改为集合式 `POST /files/move`（与 `remove` 一致）并同步改 `A3` §11.3。② 修完 ① 后暴露第二层：Varlock 的响应泄漏扫描（`patch-response.mjs`，对所有标记 sensitive 且 `preventLeaks=true` 的值做 `String.includes`）命中 `STORAGE_ROOT=storage` —— 而 "storage" 是 OpenAPI 文档里的常见子串（`storageKey`、连接 `type` 等），属误报；按 Varlock 官方语义（`@sensitive={preventLeaks=false}`：关闭响应泄漏拦截、日志脱敏仍生效）改 `apps/web/.env.schema`。 |
 
-### S4 结论（2026-10-19 落地）
+### S4 结论（2026-10-19 落地，2026-10-20 完成登录态实测）
 
 | #   | 结论                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            |
 | --- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 8   | **`#6` 收口：承载数据的页面改路由 `loader` + 首屏 SSR 真实数据**。① `/files/` 与 `/files/$` 共用 `src/lib/files-loader.ts` 的 `loadFiles(parentId)`（并行 `file.list` + `file.path`）；`/admin/users` 按 founder 角色装载 `fetchAdmins()`。② 会话由 `__root` 的 `beforeLoad` 服务端读 Cookie 解析后 `return { session }` 注入**路由 context**（`getRouter()` 每请求实例化 → SSR 安全），取代旧模块级 `ensureSession()` 单例；未登录访问受保护页 SSR 直接 307 到 `/login`。③ 取数口统一走 `src/server/fns.ts` 的 `createServerFn`：SSR 进程内直调 oRPC（`@orpc/server` 的 `call`），客户端导航走 serverFn HTTP。 |
 | 9   | **`createServerFn` 的 server-only import 会被剥离**：`src/server/fns.ts` 顶层 import `@MyDISK/api` 的 schema 与 router，`vite build` 客户端产物不含之（Start 编译器剥离 caller 模块的 handler 体 + import-protection 校验通过），无需动态 `import()`。附带：`.validator(zod)` 的调用签名是 `fn({ data })`（不是 `fn(data)`）。                                                                                                                                                                                                                                                                                  |
-| 10  | **验证缺口**：本机 PostgreSQL `:5432` 未运行（`ECONNREFUSED`）→「**登录态首屏出真实文件数据**」未实测。已实测：`bun run check-types` / `bunx oxlint` / `bunx vite build`（client + SSR）全绿；`GET /files`（无会话）SSR **307 → `/login`**；`/login` 脱水状态含 `b:{session:null}`（证明 `beforeLoad` 服务端解析会话并注入 context）。需 DB / Redis 起来后补登录态用例。                                                                                                                                                                                                                                        |
+| 10  | **登录态实测通过（2026-10-20）**：本地 PostgreSQL 18.6（`I:\postgresql`）建库 `pstorage` + `db:push` + `cli install` 后，带会话 `GET /files` 返回 **200**，HTML 中 `SSR-VERIFY-2026` 出现 3 次（文件行由 loader 服务端直出，非客户端补渲染）；`/files/<folderId>` 亦 SSR 带出面包屑名。`GET /files`（无会话）SSR **307 → `/login`**；`/api/openapi.json`、`/api/reference` 均 200。                                                                                                                                                                                                                             |
+| 11  | **dev 模式三个仅 dev 暴露的缺陷**（均已修）：① `server/config.ts` 用 Bun 专有的 `import.meta.dir`，而 `vite dev` 的 SSR 由 node 承载 → 改 `fileURLToPath(new URL("../../../..", import.meta.url))`；② 同文件 `env.PORT` 在 Varlock schema 中不存在且无人消费（生产入口读 `process.env.PORT`）→ 删；③ `server/{openapi,fns}.ts` 仍 import 旧路径 `@MyDISK/api/routers/index`（`appRouter` 早已迁到 `@MyDISK/api`），被 `packages/api/dist` 的**陈旧产物**掩盖 → 改 `@MyDISK/api`，并把前端用的节点类型收敛为 `@MyDISK/api/schemas/file` 的 `FileNode`。                                                          |
+| 12  | **dev 脚本改用 Bun 运行时**（`web`：`bun --bun vite dev`）：workspace 包 exports 指向 `.ts` 源码，node 侧 SSR 无法加载；生产入口本就是 Bun（`bun ./scripts/start.mjs`），改用后 dev 与 prod 运行时一致。                                                                                                                                                                                                                                                                                                                                                                                                        |
 
 ## 8. 回滚
 

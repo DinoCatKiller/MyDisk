@@ -38,6 +38,9 @@ export const fileNodeSchema = z.object({
 export const fileNodeListSchema = pageSchema(fileNodeSchema);
 export const fileNodeArraySchema = z.array(fileNodeSchema);
 
+/** 文件节点对外形状（由 `fileNodeSchema` 推导，供前端消费） */
+export type FileNode = z.infer<typeof fileNodeSchema>;
+
 export const listFilesInput = paginationSchema.extend({
   connectionId: z.uuid().nullish(),
   parentId: z.uuid().nullish(),

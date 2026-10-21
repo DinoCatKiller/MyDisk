@@ -4,7 +4,7 @@ import { createServerFn } from "@tanstack/solid-start";
 
 import { appRouter } from "@MyDISK/api";
 import { listFilesInput, nodeIdInput } from "@MyDISK/api/schemas/file";
-import type { FileNodeRow } from "@MyDISK/db/schema";
+import type { FileNode } from "@MyDISK/api/schemas/file";
 
 import type { SessionUser } from "~/lib/session";
 
@@ -44,7 +44,7 @@ export const fetchFileList = createServerFn({ method: "GET" })
 /** 面包屑祖先链（`file.path`） */
 export const fetchFilePath = createServerFn({ method: "GET" })
   .validator(nodeIdInput)
-  .handler(async ({ data }): Promise<FileNodeRow[]> => {
+  .handler(async ({ data }): Promise<FileNode[]> => {
     const context = await createContextFromHeaders(currentHeaders());
     return await call(appRouter.file.path, data, { context });
   });

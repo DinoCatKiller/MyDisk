@@ -1,12 +1,12 @@
 # S1 · 当前阶段（概览）
 
-|        |                                                                             |
-| ------ | --------------------------------------------------------------------------- |
-| ID     | `S1`                                                                        |
-| 类型   | 状态 · **概览**                                                             |
-| 更新   | 2026-10-19（S4：文档批更 + loader/SSR 收口完成；P2 回归待 DB 起来后人工验） |
-| 何时读 | **每次开工第一眼**，5 秒确认「现在做什么」                                  |
-| 规模   | ~0.5k token                                                                 |
+|        |                                                                      |
+| ------ | -------------------------------------------------------------------- |
+| ID     | `S1`                                                                 |
+| 类型   | 状态 · **概览**                                                      |
+| 更新   | 2026-10-20（S4：loader/SSR 收口 + 登录态实测完成；仅剩 P2 人工回归） |
+| 何时读 | **每次开工第一眼**，5 秒确认「现在做什么」                           |
+| 规模   | ~0.5k token                                                          |
 
 > **本文件只写当前阶段的任务。** 任务完成 → 清空并重写；历史交给 git，长期排期见 `RM`。
 > 任务跨多个模块时：**这里只给概览**，细节写在相关模块的 `status.md` 里，并从下表链过去。
@@ -17,15 +17,18 @@
 
 一句话：把前端由 `@solidjs/router` + Nitro 换成 `@tanstack/solid-router` + `@tanstack/solid-start`，两个进程合并为**单 app**，Hono 降为 `/api/$` 子系统（oRPC 保留）；动机是拿到 loader / SSR 数据模型。
 
-| 段  | 事项                                                                                                                             | 门槛                                                                                                | 细节             |
-| --- | -------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- | ---------------- |
-| S0  | ✅ 5/5 通过（依赖组合可装可跑 / Varlock 与 Start+Tailwind 共存 / Hono `ANY` catch-all / loader SSR 出数 / `@rsbuild/core` 可选） | 全过才进 S1                                                                                         | `GUI` §7 S0 结论 |
-| S1  | ✅ 单 app 骨架：`apps/server/src/**` 并入 `apps/web/src/server/`、换 vite 插件、合并 `.env.schema`、端口收敛、自建 prod 入口     | `bun run build` 能起，`/` 返回 SSR 页面                                                             | `GUI` §7 S1 结论 |
-| S2  | ✅ 路由与页面迁移（13 个路由文件 + `App.tsx`/`Document.tsx` 拆入 `__root.tsx`）                                                  | 每页 `check-types` + 手工打开                                                                       | `GUI` §3         |
-| S3  | ✅ Hono 挂载 + 对外 URL 重排（`/rpc`→`/api/rpc` 等 3 处变更）                                                                    | `/api/rpc`、`/api/reference`、`/api/openapi.json` 均 200                                            | `GUI` §4         |
-| S4  | 🚧 **文档批更 ✅** + **loader/SSR 收口 ✅**（`GUI` §7 #6 闭环）+ P2 全量回归 ⬜                                                  | `check-types`/`lint`/`build` 全绿（已过）+ 上传/续传/刷新恢复/目录树/移动/删除/回收站全过（待人工） | `GUI` §7 S4 结论 |
+| 段  | 事项                                                                                                                             | 门槛                                                                                                    | 细节             |
+| --- | -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- | ---------------- |
+| S0  | ✅ 5/5 通过（依赖组合可装可跑 / Varlock 与 Start+Tailwind 共存 / Hono `ANY` catch-all / loader SSR 出数 / `@rsbuild/core` 可选） | 全过才进 S1                                                                                             | `GUI` §7 S0 结论 |
+| S1  | ✅ 单 app 骨架：`apps/server/src/**` 并入 `apps/web/src/server/`、换 vite 插件、合并 `.env.schema`、端口收敛、自建 prod 入口     | `bun run build` 能起，`/` 返回 SSR 页面                                                                 | `GUI` §7 S1 结论 |
+| S2  | ✅ 路由与页面迁移（13 个路由文件 + `App.tsx`/`Document.tsx` 拆入 `__root.tsx`）                                                  | 每页 `check-types` + 手工打开                                                                           | `GUI` §3         |
+| S3  | ✅ Hono 挂载 + 对外 URL 重排（`/rpc`→`/api/rpc` 等 3 处变更）                                                                    | `/api/rpc`、`/api/reference`、`/api/openapi.json` 均 200                                                | `GUI` §4         |
+| S4  | ✅ **文档批更** + **loader/SSR 收口** + **登录态实测**（`GUI` §7 #6 闭环）                                                       | `check-types`/`lint`/`build` 全绿 + SSR 首屏出真实数据（已过）；上传/续传/目录树/移动/删除/回收站待人工 | `GUI` §7 S4 结论 |
 
-**S4 loader/SSR 收口（已完成）**：13 个路由中承载数据的两处改为**路由 `loader`**（`/files/`、`/files/$` 经 `src/lib/files-loader.ts`；`/admin/users` 经 `fetchAdmins`），会话由 `__root` 的 `beforeLoad` 服务端读 Cookie 解析后注入**路由 context**（`getRouter()` 每请求实例化，SSR 安全）；`src/server/fns.ts` 用 `createServerFn` 封 4 个取数口（SSR 进程内直调 oRPC）。未登录访问受保护页 SSR 直接 307 到 `/login`（实测）；`/login` 脱水状态含 `b:{session:null}`（实测）。**验证缺口**：本机 PostgreSQL `:5432` 未运行（`ECONNREFUSED`），「登录态首屏出真实文件数据」尚未实测，需 DB/Redis 起来后补。
+**S4 loader/SSR 收口（已完成，2026-10-20）**：13 个路由中承载数据的两处改为**路由 `loader`**（`/files/`、`/files/$` 经 `src/lib/files-loader.ts`；`/admin/users` 经 `fetchAdmins`），会话由 `__root` 的 `beforeLoad` 服务端读 Cookie 解析后注入**路由 context**（`getRouter()` 每请求实例化，SSR 安全）；`src/server/fns.ts` 用 `createServerFn` 封 4 个取数口（SSR 进程内直调 oRPC）。
+
+- 实测：未登录访问受保护页 SSR 直接 307 到 `/login`；带会话 `GET /files` 返回 200，HTML 含真实文件名（证明 loader 服务端直出）；`/files/<folderId>` 亦 SSR 带出面包屑；`/api/openapi.json`/`/api/reference` 均 200。`bun run check-types` / `bunx oxlint` / `bun run build` 全绿。
+- 遗留：上传/续传/目录树/移动/删除/回收站需要人工回归。
 
 **S3 遗留（已修复）**：`/api/openapi.json` 曾返回 500，两个叠加原因已解决 —— `file.move` 的 REST 路径与输入 schema 不匹配（改为 `POST /files/move`，见 `A3` §11.3），以及 Varlock 响应泄漏扫描把 `STORAGE_ROOT` 的字面值误判为泄漏（`apps/web/.env.schema` 改用 `@sensitive={preventLeaks=false}`）。详见 `GUI` §7 结论 #7。
 

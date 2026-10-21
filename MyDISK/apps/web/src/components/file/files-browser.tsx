@@ -1,7 +1,7 @@
 import { useNavigate } from "@tanstack/solid-router";
 import { Show, createEffect, createSignal, onSettled } from "solid-js";
 
-import type { FileNodeRow } from "@MyDISK/db/schema";
+import type { FileNode } from "@MyDISK/api/schemas/file";
 
 import { DropZone } from "~/components/file/drop-zone";
 import { FileList } from "~/components/file/file-list";
@@ -32,7 +32,7 @@ export function FilesBrowser(props: FilesBrowserProps) {
   const session = useSession();
 
   /** 客户端筛选 / 排序 / 刷新后的覆盖结果；`null` 表示仍用 loader 数据。 */
-  const [override, setOverride] = createSignal<FileNodeRow[] | null>(null);
+  const [override, setOverride] = createSignal<FileNode[] | null>(null);
   const [loading, setLoading] = createSignal(false);
   const [error, setError] = createSignal("");
   const [keyword, setKeyword] = createSignal("");
@@ -96,11 +96,11 @@ export function FilesBrowser(props: FilesBrowserProps) {
     void initUploadStore();
   });
 
-  const openFolder = (node: FileNodeRow) => {
+  const openFolder = (node: FileNode) => {
     navigate({ to: "/files/$", params: { _splat: node.id } });
   };
 
-  const download = (node: FileNodeRow) => {
+  const download = (node: FileNode) => {
     void client.preview
       .url({ nodeId: node.id, inline: true, download: true })
       .then((result) => {
@@ -126,7 +126,7 @@ export function FilesBrowser(props: FilesBrowserProps) {
       .catch((mkdirError: unknown) => setError(messageOf(mkdirError, "新建文件夹失败")));
   };
 
-  const rename = (node: FileNodeRow) => {
+  const rename = (node: FileNode) => {
     const name = window.prompt("重命名", node.name);
     if (!name || name === node.name) {
       return;
@@ -137,7 +137,7 @@ export function FilesBrowser(props: FilesBrowserProps) {
       .catch((renameError: unknown) => setError(messageOf(renameError, "重命名失败")));
   };
 
-  const remove = (node: FileNodeRow) => {
+  const remove = (node: FileNode) => {
     if (!window.confirm(`确定将「${node.name}」移入回收站？`)) {
       return;
     }

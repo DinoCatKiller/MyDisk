@@ -1,4 +1,4 @@
-import type { FileNodeRow } from "@MyDISK/db/schema";
+import type { FileNode } from "@MyDISK/api/schemas/file";
 
 import { fetchFileList, fetchFilePath } from "~/server/fns";
 
@@ -6,9 +6,9 @@ import { fetchFileList, fetchFilePath } from "~/server/fns";
 export type FilesLoaderData = {
   /** 当前目录节点 ID（裸 `/files` 为 null） */
   parentId: string | null;
-  items: FileNodeRow[];
+  items: FileNode[];
   /** 面包屑祖先链 */
-  path: FileNodeRow[];
+  path: FileNode[];
   /** 服务端取数错误（有值时前端展示告警而不是抛错页） */
   error: string;
 };
@@ -36,9 +36,7 @@ export async function loadFiles(parentId: string | null): Promise<FilesLoaderDat
           pageSize: 200,
         },
       }),
-      parentId
-        ? fetchFilePath({ data: { nodeId: parentId } }).catch((): FileNodeRow[] => [])
-        : null,
+      parentId ? fetchFilePath({ data: { nodeId: parentId } }).catch((): FileNode[] => []) : null,
     ]);
 
     return { parentId, items: list.items, path: chain ?? [], error: "" };

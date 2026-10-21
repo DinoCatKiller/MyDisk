@@ -47,6 +47,8 @@
 - 取数口 `src/server/fns.ts` 顶层 import 了 `@MyDISK/api` 的 schema 与 router：`createServerFn` 编译器把 caller 模块的 handler 体剥离、Start 的 import-protection 校验通过，故 `vite build` 的客户端产物不含服务端 router/oRPC server（已实测 build 绿）。
 - Hono 侧路径自带 `/api` 前缀（`/api/upload/chunk`、`/api/raw/:nodeId`、`/api/rpc`、`/api/reference`、`/api/openapi.json`），对外 URL 见 `GUI` §4。
 - 构建链的两处非显然点（`GUI` §7 S1 结论）：① `vite.config.ts` 的 `solidWebServerFunctionUrlShim()` 兜住 `@tanstack/solid-start` 对已改名导出的旧名导入；② `scripts/start.mjs` 必须自带 `dist/client` 静态资源服务，Start 的默认 server entry 只做 SSR。
+- **dev 必须跑在 Bun 运行时**：`dev` 脚本是 `bun --bun vite dev`。workspace 包的 exports 指向 `.ts` 源码，`vite dev` 的 SSR 若由 node 承载会 `Cannot find module '@MyDISK/api'`；生产入口本就是 Bun，两处运行时因此一致（`GUI` §7 S4 结论 #11/#12）。
+- `src/server/config.ts` 用 `import.meta.url` 推导项目根，不要改回 Bun 专有的 `import.meta.dir`（node 下为 `undefined`，会让整个 `/api` 子系统在 dev 抛错）。
 - 上传刷新续传本期为 **C 级（仅元数据 + 重选续传）**：工具栏用 `<input type=file>`，拿不到 `FileSystemFileHandle`，故 A 级（FSA）未启用；`idb.ts` 的 `handles`/`blobs` 接口已备好，见 `S2` #3。
 
 ## 相关

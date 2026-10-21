@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vite dev",
+    "dev": "bun --bun vite dev",
     "build": "tsc -b ../../packages/api && vite build",
     "check-types": "tsc -b ../../packages/api && tsc --noEmit",
     "start": "bun ./scripts/start.mjs",
