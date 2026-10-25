@@ -15,6 +15,7 @@ import "../styles.css";
 export const Route = createRootRouteWithContext<RouterContext>()({
   head: () => ({
     meta: [{ title: "MyDisk · 私人云盘" }],
+    links: [{ rel: "icon", type: "image/svg+xml", href: "/favicon.svg" }],
   }),
   /**
    * 服务端解析会话并注入路由 context（`D8`）：SSR 期间直接拿到真实会话，

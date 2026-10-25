@@ -179,7 +179,19 @@ export const uploadPoolMachine = setup({
           ],
         },
         RESUME_ALL: {
-          actions: [assign({ globalPaused: false }), "dispatchQueue"],
+          actions: [
+            assign({ globalPaused: false }),
+            // 必须逐个唤醒 paused 条目（其 queued 态会向池回发 CHILD_QUEUED 重新排队）；
+            // 只清 globalPaused 不够 —— paused 条目不会自行回到 queued
+            enqueueActions(({ context, enqueue }) => {
+              for (const ref of context.items.values()) {
+                if (ref.getSnapshot().matches("paused")) {
+                  enqueue.sendTo(ref, { type: "RESUME" });
+                }
+              }
+            }),
+            "dispatchQueue",
+          ],
         },
         STOP_ALL: {
           actions: [

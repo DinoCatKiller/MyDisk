@@ -52,6 +52,16 @@ uploadChunkRoute.post("/api/upload/chunk", async (c) => {
     return c.json({ code: "BAD_REQUEST", message: "缺少请求体" }, 400);
   }
 
+  // 客户端可能中途 abort（暂停/停止上传）：先在 try/catch 里把分片读进内存，
+  // 避免中断的请求流以 ECONNRESET 沿 node 流逃逸、把单 app 进程打挂。
+  // 8MB 分片缓冲内存可控；读完再以流交驱动，行为与原先一致。
+  let bytes: Uint8Array<ArrayBuffer>;
+  try {
+    bytes = new Uint8Array(await c.req.arrayBuffer());
+  } catch {
+    return c.json({ code: "CLIENT_ABORTED", message: "客户端中断了分片上传" }, 400);
+  }
+
   const connection = await resolveConnection(db, row.connectionId);
   const driver = driverFor(connection, serverConfig.storageRoot);
   if (!driver.multipart) {
@@ -62,7 +72,7 @@ uploadChunkRoute.post("/api/upload/chunk", async (c) => {
     row.storageKey,
     row.providerUploadId,
     index,
-    body as ReadableStream<Uint8Array>,
+    new Blob([bytes]).stream(),
   );
 
   // 单语句原子追加，避免并发分片互相覆盖（元素去重）

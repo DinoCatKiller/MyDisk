@@ -1,6 +1,6 @@
 import type { JSX } from "@solidjs/web";
 import { useLocation, useNavigate, useRouter } from "@tanstack/solid-router";
-import { For, Show, createSignal, onCleanup, onSettled } from "solid-js";
+import { For, Show, createSignal, onSettled } from "solid-js";
 
 import {
   ChevronDownIcon,
@@ -76,7 +76,8 @@ export function AppShell(props: AppShellProps) {
   onSettled(() => {
     const onDocumentClick = () => setMenuOpen(false);
     document.addEventListener("click", onDocumentClick);
-    onCleanup(() => document.removeEventListener("click", onDocumentClick));
+    // Solid 2：onSettled 内禁用 onCleanup，清理函数由回调返回
+    return () => document.removeEventListener("click", onDocumentClick);
   });
 
   const handleSignOut = async () => {

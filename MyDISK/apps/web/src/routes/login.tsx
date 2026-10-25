@@ -1,4 +1,4 @@
-import { createFileRoute, useNavigate, useRouter } from "@tanstack/solid-router";
+import { createFileRoute, useNavigate } from "@tanstack/solid-router";
 import { For, Show, createSignal } from "solid-js";
 
 import { Alert } from "~/components/ui/alert";
@@ -40,13 +40,13 @@ const FEATURES = [
 ];
 
 export const Route = createFileRoute("/login")({
-  head: () => ({ meta: [{ title: "登录 · MyDisk" }] }),
+  // 注意：路由级 head() 在 solid-router rc.9 + solid rc.18 下会使 SSR 抛错
+  // （错误被 Errored 吞掉后整页白屏），页面标题暂由根路由 head 承担。
   component: LoginPage,
 });
 
 function LoginPage() {
   const navigate = useNavigate();
-  const router = useRouter();
   const [email, setEmail] = createSignal("");
   const [password, setPassword] = createSignal("");
   const [error, setError] = createSignal("");
@@ -71,12 +71,18 @@ function LoginPage() {
         password: password(),
         rememberMe: true,
       });
-      // 让根路由 beforeLoad 重新解析会话，向后续页面注入新会话（`D8`）
-      await router.invalidate();
+      // 登录后整页跳转：根路由 beforeLoad 在 SSR 里重新解析会话（`D8`）。
+      // 不用 invalidate()+navigate()——两者并发会与 rc.9 的渲染竞态，
+      // 出现「URL 已切换、内容停在登录页」的脱节。
       navigate(
         result.mustChangePassword
-          ? { to: "/settings/security", search: { force: true }, replace: true }
-          : { to: "/files", replace: true },
+          ? {
+              to: "/settings/security",
+              search: { force: true },
+              replace: true,
+              reloadDocument: true,
+            }
+          : { to: "/files", replace: true, reloadDocument: true },
       );
     } catch (submitError) {
       setError(translateError(submitError));
