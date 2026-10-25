@@ -3,7 +3,7 @@ import { ORPCError } from "@orpc/server";
 
 import type { Database } from "@MyDISK/db";
 import { storageConnection, type StorageConnectionRow } from "@MyDISK/db/schema";
-import { createStorageDriver, type StorageDriver } from "@MyDISK/storage";
+import { createStorageDriver, decryptSecret, type StorageDriver } from "@MyDISK/storage";
 
 /** 指定连接，未指定时取全局默认连接 */
 export async function resolveConnection(
@@ -38,9 +38,25 @@ export async function resolveConnection(
 
 /**
  * 为连接创建驱动。
- * 云连接的 config_enc 解密在 P3 接入驱动时补齐（当前仅 local）。
+ *
+ * 云连接（cos/oss/s3）把 `config_enc` 用 AES-256-GCM 解密后交给驱动（`A4` §4）；
+ * `encryptionKey` 缺省回落 `process.env.ENCRYPTION_KEY`（worker / cli 侧即如此）。
  */
-export function driverFor(connection: StorageConnectionRow, storageRoot: string): StorageDriver {
+export function driverFor(
+  connection: StorageConnectionRow,
+  storageRoot: string,
+  encryptionKey?: string,
+): StorageDriver {
+  let config: Record<string, unknown> | null = null;
+  if (connection.type !== "local" && connection.configEnc) {
+    const key = encryptionKey ?? process.env.ENCRYPTION_KEY;
+    if (!key) {
+      throw new ORPCError("INTERNAL_SERVER_ERROR", {
+        message: "缺少 ENCRYPTION_KEY，无法解密云存储连接的密钥",
+      });
+    }
+    config = JSON.parse(decryptSecret(connection.configEnc, key)) as Record<string, unknown>;
+  }
   return createStorageDriver(
     {
       id: connection.id,
@@ -49,7 +65,7 @@ export function driverFor(connection: StorageConnectionRow, storageRoot: string)
       region: connection.region,
       endpoint: connection.endpoint,
       rootPrefix: connection.rootPrefix,
-      config: null,
+      config,
     },
     { localRoot: storageRoot },
   );

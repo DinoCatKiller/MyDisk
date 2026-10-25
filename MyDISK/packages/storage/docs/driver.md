@@ -1,13 +1,13 @@
 # A4 · 存储抽象契约
 
-|        |                                                  |
-| ------ | ------------------------------------------------ |
-| ID     | `A4`                                             |
-| 类型   | 规格（契约）                                     |
-| 状态   | 稳定（P0 已落地本地驱动；COS/OSS/S3 于 P3 接入） |
-| 更新   | 2026-10-15                                       |
-| 何时读 | 加存储驱动、改上传取流 / 物理键 / 密钥加密时     |
-| 规模   | ~2k token                                        |
+|        |                                                                      |
+| ------ | -------------------------------------------------------------------- |
+| ID     | `A4`                                                                 |
+| 类型   | 规格（契约）                                                         |
+| 状态   | 稳定（P0 本地驱动；**P3 已接入 COS/OSS/S3**，契约测试随 `bun test`） |
+| 更新   | 2026-10-26                                                           |
+| 何时读 | 加存储驱动、改上传取流 / 物理键 / 密钥加密时                         |
+| 规模   | ~2k token                                                            |
 
 ## TL;DR
 
@@ -45,6 +45,7 @@ interface StorageDriver {
 ```
 
 > 实现现状：`packages/storage/src/types.ts` 定义了等价接口（含 `supportsMultipart`、`readAll`）；`createStorageDriver()` 为工厂入口。
+> P3 实现：`drivers/s3.ts`（AWS SDK，自定义 endpoint 时 path-style，兼容 MinIO）、`drivers/cos.ts`（cos-nodejs-sdk-v5）、`drivers/oss.ts`（ali-oss）。云驱动把 body 缓冲为 Buffer（进入驱动的 body 只有小文件直传与 ≤8MB 分片，内存上界可控）；驱动测试见 `packages/storage/test/drivers.test.ts`。
 > 本地驱动的 `multipart.complete` 返回 `{ key, size, etag }`，其中 **`etag` 是完整 64 位 sha256**（顺序合并后计算），被 `upload.complete` 写入 `file_node.checksum` 并用于秒传判定——因此不能截断。
 
 **能力协商**：本地驱动自己实现「临时目录 + 合并」版 multipart；COS/OSS/S3 直接用原生 multipart。无 `signDownloadUrl` 能力时，一律走服务端 `/api/raw/*` 代理流（本地驱动即如此）。
@@ -66,7 +67,7 @@ key = `${connectionId}/${yyyy}/${MM}/${Date.now()}-${rand8}${ext}`
 
 ## 4. 连接配置加密
 
-- `storage_connection.config_enc` 中的 `secretId/secretKey/accessKey` 用 **AES-256-GCM** 加密（密钥来自 `ENCRYPTION_KEY`），读取时解密；
+- `storage_connection.config_enc` 中的密钥用 **AES-256-GCM** 加密（密钥来自 `ENCRYPTION_KEY`），读取时解密；按类型约定取用：cos → `secretId/secretKey`、oss → `accessKeyId/accessKeySecret`、s3 → `accessKeyId/secretAccessKey`；
 - 列表接口**永不返回密钥原文**，只回掩码 `AKID****abcd`（存 `config_masked`）。
 - 加密实现见 `packages/storage/src/crypto.ts`。
 

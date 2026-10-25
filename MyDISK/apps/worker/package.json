@@ -1,0 +1,28 @@
+{
+  "name": "worker",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun --hot src/index.ts",
+    "start": "bun run src/index.ts",
+    "build": "bun build ./src/index.ts --target=bun --outdir ./dist --packages=external",
+    "check-types": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@MyDISK/db": "workspace:*",
+    "@MyDISK/mail": "workspace:*",
+    "@MyDISK/queue": "workspace:*",
+    "@MyDISK/storage": "workspace:*",
+    "bullmq": "^5.34.0",
+    "drizzle-orm": "^0.45.2",
+    "ioredis": "^5.4.1"
+  },
+  "devDependencies": {
+    "@MyDISK/config": "workspace:*",
+    "@types/bun": "catalog:",
+    "typescript": "catalog:"
+  },
+  "engines": {
+    "node": ">=24"
+  }
+}

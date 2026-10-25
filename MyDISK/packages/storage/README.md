@@ -2,9 +2,9 @@
 
 |        |                                                                                                                                                      |
 | ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- |
-| 状态   | ✅ 已落地（P0，仅 `local` 驱动）                                                                                                                     |
+| 状态   | ✅ 已落地（P0 本地驱动；P3 接入 COS / OSS / S3 云驱动 + 契约测试 `bun test`）                                                                        |
 | 边界   | 负责驱动接口与本地实现、物理键生成、分片能力、密钥加密/脱敏、路径穿越防护；**不含**上传编排与取流（在 `server`/`@MyDISK/api`）、连接 CRUD（在 `A3`） |
-| 上游   | 无业务包（仅 Node 内置能力）                                                                                                                         |
+| 上游   | 无业务包（云驱动依赖 `@aws-sdk/client-s3`、`cos-nodejs-sdk-v5`、`ali-oss` 三家官方 SDK；本地场景不引入运行时开销可后续改惰性加载）                   |
 | 下游   | `api`、`server`、`cli`（`encryptSecret`）、`worker`（P3，⬜）                                                                                        |
 | 何时读 | 加驱动、改物理键 / 加密                                                                                                                              |
 
@@ -14,14 +14,16 @@
 
 ## 核心内容
 
-| 项                     | 说明                                                                                                                                                                                                   |
-| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `src/index.ts`         | `createStorageDriver(connection, { localRoot })`：`local` 返回 `LocalStorageDriver`；`cos`/`oss`/`s3` 抛 `NOT_IMPLEMENTED`（P3）；`DEFAULT_LOCAL_ROOT = "storage"`                                     |
-| `src/types.ts`         | `StorageDriver`（`put`/`get`/`head`/`delete`/`deleteMany`/`copy`/`list`/`readAll`/`signDownloadUrl` + `supportsMultipart`/`multipart`）、`MultipartCapability`、`StorageConnectionLike`、`RangeOption` |
-| `src/drivers/local.ts` | 本地实现；`resolve()` 校验所有键必须落在连接根内；分片暂存于 `<root>/.tmp/<connectionId>/<uploadId>`                                                                                                   |
-| `src/key.ts`           | `buildStorageKey`：`<connectionId>/<yyyy>/<MM>/<unixMs>-<rand><ext>`；`buildTempPrefix`                                                                                                                |
-| `src/crypto.ts`        | AES-256-GCM `encryptSecret`/`decryptSecret`（`iv.tag.payload` base64）；`maskSecret` 脱敏                                                                                                              |
-| `src/errors.ts`        | `StorageError` + 错误码枚举（`NOT_FOUND`/`PATH_TRAVERSAL`/`NOT_IMPLEMENTED`/`UPLOAD_SESSION_INVALID` 等）                                                                                              |
+| 项                            | 说明                                                                                                                                                                                                                   |
+| ----------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/index.ts`                | `createStorageDriver(connection, { localRoot })`：按类型返回 `LocalStorageDriver` / `CosDriver` / `OssDriver` / `S3Driver`；云连接密钥从 `connection.config`（已解密）按类型约定取用；`DEFAULT_LOCAL_ROOT = "storage"` |
+| `src/types.ts`                | `StorageDriver`（`put`/`get`/`head`/`delete`/`deleteMany`/`copy`/`list`/`readAll`/`signDownloadUrl` + `supportsMultipart`/`multipart`）、`MultipartCapability`、`StorageConnectionLike`、`RangeOption`                 |
+| `src/drivers/local.ts`        | 本地实现；`resolve()` 校验所有键必须落在连接根内；分片暂存于 `<root>/.tmp/<connectionId>/<uploadId>`                                                                                                                   |
+| `src/key.ts`                  | `buildStorageKey`：`<connectionId>/<yyyy>/<MM>/<unixMs>-<rand><ext>`；`buildTempPrefix`                                                                                                                                |
+| `src/crypto.ts`               | AES-256-GCM `encryptSecret`/`decryptSecret`（`iv.tag.payload` base64）；`maskSecret` 脱敏                                                                                                                              |
+| `src/errors.ts`               | `StorageError` + 错误码枚举（`NOT_FOUND`/`PATH_TRAVERSAL`/`NOT_IMPLEMENTED`/`UPLOAD_SESSION_INVALID` 等）                                                                                                              |
+| `src/drivers/{s3,cos,oss}.ts` | 云驱动（P3）：S3 兼容（MinIO/私有部署 path-style）、COS、OSS；分片走各家原生 multipart；下载直链 `signDownloadUrl`（本地恒 `null`）；body 统一缓冲为 Buffer（分片 ≤ 8MB 上界可控）                                     |
+| `test/drivers.test.ts`        | 契约测试（`bun test`）：本地回归 + S3 驱动对 s3rver 全链路（put/get/range/copy/list/multipart/签名直链带中文文件名）；s3rver 3.7.1 缺 ListParts/Abort 与带 Delimiter 的 Prefix，用 `S3_TEST_S3RVER=0` 关闭豁免         |
 
 ## 必须知道的三个设计决定
 

@@ -46,7 +46,7 @@
                                   └────────────────┘
 ```
 
-> `apps/worker`、`/dav`、`/api/upload/*`、`/api/raw/*` 在 P0/P1 尚未落地，属 P2–P4（见 `RM`）。
+> `apps/worker` 已落地（P3-1，maintenance / mail 消费中）；`/dav` 属 P4；`/api/upload/*`、`/api/raw/*` 已随 P2 落地。
 
 **为什么拆两个面（oRPC 与原生 HTTP）**：oRPC 是 JSON-RPC 语义，用它传 8MB 分片会 base64 膨胀 33% 且内存翻倍。因此：
 
@@ -64,7 +64,7 @@ MyDISK/
 ├── apps/
 │   ├── web/                    # TanStack Start 单 app（README + docs/ui.md = A5）
 │   │   └── src/server/         # Hono + oRPC 装配，直挂为 `/api` 子系统（README）
-│   └── worker/                 # ⬜ P3 新增：BullMQ Worker 独立进程
+│   └── worker/                 # ✅ P3：BullMQ Worker 独立进程（README）
 ├── packages/
 │   ├── api/                    # oRPC 路由集合（README + docs/routers.md = A3）
 │   ├── auth/                   # Better-Auth 封装：禁注册、founder、oRPC 封装
