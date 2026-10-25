@@ -14,6 +14,9 @@ export type FileListProps = {
   onDownload: (node: FileNodeRow) => void;
   onRename: (node: FileNodeRow) => void;
   onDelete: (node: FileNodeRow) => void;
+  onFavorite: (node: FileNodeRow) => void;
+  onMove: (node: FileNodeRow) => void;
+  onProperties: (node: FileNodeRow) => void;
 };
 
 export function FileList(props: FileListProps) {
@@ -47,6 +50,9 @@ export function FileList(props: FileListProps) {
               onDownload={props.onDownload}
               onRename={props.onRename}
               onDelete={props.onDelete}
+              onFavorite={props.onFavorite}
+              onMove={props.onMove}
+              onProperties={props.onProperties}
             />
           )}
         </For>

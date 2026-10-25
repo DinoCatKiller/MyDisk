@@ -166,3 +166,12 @@
     display: none;
   }
 }
+
+/* 收藏激活态：覆盖 Svg 的 fill="none" 表现属性 */
+.starActive {
+  color: #f5a623;
+}
+
+.starActive svg {
+  fill: currentColor;
+}

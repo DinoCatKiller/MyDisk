@@ -4,6 +4,7 @@ import { createServerFn } from "@tanstack/solid-start";
 
 import { appRouter } from "@MyDISK/api";
 import { listFilesInput, nodeIdInput } from "@MyDISK/api/schemas/file";
+import { paginationSchema as paginationInput } from "@MyDISK/api/schemas/common";
 import type { FileNode } from "@MyDISK/api/schemas/file";
 
 import type { SessionUser } from "~/lib/session";
@@ -54,3 +55,19 @@ export const fetchAdmins = createServerFn({ method: "GET" }).handler(async () =>
   const context = await createContextFromHeaders(currentHeaders());
   return await call(appRouter.auth.listAdmins, undefined, { context });
 });
+
+/** 回收站列表（`file.listTrash`） */
+export const fetchTrash = createServerFn({ method: "GET" })
+  .validator(paginationInput)
+  .handler(async ({ data }) => {
+    const context = await createContextFromHeaders(currentHeaders());
+    return await call(appRouter.file.listTrash, data, { context });
+  });
+
+/** 收藏列表（`file.listFavorites`） */
+export const fetchFavorites = createServerFn({ method: "GET" })
+  .validator(paginationInput)
+  .handler(async ({ data }) => {
+    const context = await createContextFromHeaders(currentHeaders());
+    return await call(appRouter.file.listFavorites, data, { context });
+  });

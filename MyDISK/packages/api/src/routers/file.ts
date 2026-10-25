@@ -427,6 +427,68 @@ const stats = protectedProcedure
     };
   });
 
+const favorite = protectedProcedure
+  .route({ method: "POST", path: "/files/{nodeId}/favorite", summary: "加入收藏", tags: ["file"] })
+  .input(nodeIdInput)
+  .output(fileNodeSchema)
+  .handler(async ({ input, context }) => {
+    const [node] = await requireNodes(context.db, [input.nodeId]);
+    if (!node) {
+      throw new ORPCError("NOT_FOUND", { message: "文件不存在" });
+    }
+    const [updated] = await context.db
+      .update(fileNode)
+      .set({ isFavorite: true })
+      .where(eq(fileNode.id, node.id))
+      .returning();
+    if (!updated) {
+      throw new ORPCError("NOT_FOUND", { message: "文件不存在" });
+    }
+    return updated;
+  });
+
+const unfavorite = protectedProcedure
+  .route({
+    method: "POST",
+    path: "/files/{nodeId}/unfavorite",
+    summary: "取消收藏",
+    tags: ["file"],
+  })
+  .input(nodeIdInput)
+  .output(fileNodeSchema)
+  .handler(async ({ input, context }) => {
+    const [node] = await requireNodes(context.db, [input.nodeId]);
+    if (!node) {
+      throw new ORPCError("NOT_FOUND", { message: "文件不存在" });
+    }
+    const [updated] = await context.db
+      .update(fileNode)
+      .set({ isFavorite: false })
+      .where(eq(fileNode.id, node.id))
+      .returning();
+    if (!updated) {
+      throw new ORPCError("NOT_FOUND", { message: "文件不存在" });
+    }
+    return updated;
+  });
+
+const listFavorites = protectedProcedure
+  .route({ method: "GET", path: "/files/favorites", summary: "收藏列表", tags: ["file"] })
+  .input(paginationSchema)
+  .output(fileNodeListSchema)
+  .handler(async ({ input, context }) => {
+    const where = and(eq(fileNode.isFavorite, true), isNull(fileNode.deletedAt));
+    const [totalRow] = await context.db.select({ value: count() }).from(fileNode).where(where);
+    const items = await context.db
+      .select()
+      .from(fileNode)
+      .where(where)
+      .orderBy(desc(fileNode.updatedAt))
+      .limit(input.pageSize)
+      .offset((input.page - 1) * input.pageSize);
+    return { items, total: totalRow?.value ?? 0, page: input.page, pageSize: input.pageSize };
+  });
+
 export const fileRouter = {
   list,
   tree,
@@ -441,4 +503,7 @@ export const fileRouter = {
   purge,
   emptyTrash,
   stats,
+  favorite,
+  unfavorite,
+  listFavorites,
 };

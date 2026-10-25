@@ -7,7 +7,10 @@ import {
   FileIcon,
   FileImageIcon,
   FolderIcon,
+  FolderOpenIcon,
+  InfoIcon,
   PencilIcon,
+  StarIcon,
   TrashIcon,
 } from "~/components/ui/icons";
 import { formatBytes, formatDateTime } from "~/lib/format";
@@ -23,6 +26,9 @@ export type FileRowProps = {
   onDownload: (node: FileNodeRow) => void;
   onRename: (node: FileNodeRow) => void;
   onDelete: (node: FileNodeRow) => void;
+  onFavorite: (node: FileNodeRow) => void;
+  onMove: (node: FileNodeRow) => void;
+  onProperties: (node: FileNodeRow) => void;
 };
 
 export function FileRow(props: FileRowProps) {
@@ -50,6 +56,17 @@ export function FileRow(props: FileRowProps) {
 
   const actions = () => (
     <span class={styles.actions}>
+      <button
+        type="button"
+        class={`${styles.action} ${props.node.isFavorite ? styles.starActive : ""}`}
+        title={props.node.isFavorite ? "取消收藏" : "收藏"}
+        onClick={(event) => {
+          event.stopPropagation();
+          props.onFavorite(props.node);
+        }}
+      >
+        <StarIcon size={15} />
+      </button>
       <Show when={!isFolder()}>
         <button
           type="button"
@@ -73,6 +90,28 @@ export function FileRow(props: FileRowProps) {
         }}
       >
         <PencilIcon size={15} />
+      </button>
+      <button
+        type="button"
+        class={styles.action}
+        title="移动"
+        onClick={(event) => {
+          event.stopPropagation();
+          props.onMove(props.node);
+        }}
+      >
+        <FolderOpenIcon size={15} />
+      </button>
+      <button
+        type="button"
+        class={styles.action}
+        title="属性"
+        onClick={(event) => {
+          event.stopPropagation();
+          props.onProperties(props.node);
+        }}
+      >
+        <InfoIcon size={15} />
       </button>
       <button
         type="button"

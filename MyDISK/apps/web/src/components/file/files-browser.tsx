@@ -6,12 +6,13 @@ import type { FileNode } from "@MyDISK/api/schemas/file";
 import { DropZone } from "~/components/file/drop-zone";
 import { FileList } from "~/components/file/file-list";
 import type { FileView } from "~/components/file/file-row";
+import { MoveDialog } from "~/components/file/move-dialog";
+import { PropertiesPanel } from "~/components/file/properties-panel";
 import { Toolbar, type SortField, type SortOrder } from "~/components/file/toolbar";
 import { Protected } from "~/components/layout/protected";
 import { Alert } from "~/components/ui/alert";
 import { UploadDrawer } from "~/components/upload/upload-drawer";
 import type { FilesLoaderData } from "~/lib/files-loader";
-import { useSession } from "~/lib/session";
 import { enqueueCandidates, initUploadStore, type UploadCandidate } from "~/lib/upload/store";
 import { client } from "~/utils/orpc";
 
@@ -29,7 +30,6 @@ export type FilesBrowserProps = {
 /** `/files` 与 `/files/<id>/...` 共用的文件浏览器主体。 */
 export function FilesBrowser(props: FilesBrowserProps) {
   const navigate = useNavigate();
-  const session = useSession();
 
   /** 客户端筛选 / 排序 / 刷新后的覆盖结果；`null` 表示仍用 loader 数据。 */
   const [override, setOverride] = createSignal<FileNode[] | null>(null);
@@ -40,6 +40,9 @@ export function FilesBrowser(props: FilesBrowserProps) {
   const [sortOrder, setSortOrder] = createSignal<SortOrder>("asc");
   const [view, setView] = createSignal<FileView>("list");
   const [reloadTick, setReloadTick] = createSignal(0);
+  /** 移动对话框 / 属性面板的当前目标节点 */
+  const [moving, setMoving] = createSignal<FileNode | null>(null);
+  const [inspecting, setInspecting] = createSignal<FileNode | null>(null);
 
   /** 当前目录节点 ID（由 loader 决定：裸 `/files` 为 null）。 */
   const parentId = () => props.data.parentId;
@@ -89,10 +92,6 @@ export function FilesBrowser(props: FilesBrowserProps) {
   );
 
   onSettled(() => {
-    if (session()?.mustChangePassword) {
-      navigate({ to: "/settings/security", search: { force: true } });
-      return;
-    }
     void initUploadStore();
   });
 
@@ -136,6 +135,22 @@ export function FilesBrowser(props: FilesBrowserProps) {
       .then(() => reload())
       .catch((renameError: unknown) => setError(messageOf(renameError, "重命名失败")));
   };
+
+  const toggleFavorite = (node: FileNode) => {
+    const call = node.isFavorite
+      ? client.file.unfavorite({ nodeId: node.id })
+      : client.file.favorite({ nodeId: node.id });
+    void call
+      .then(() => reload())
+      .catch((favoriteError: unknown) =>
+        setError(messageOf(favoriteError, node.isFavorite ? "取消收藏失败" : "收藏失败")),
+      );
+  };
+
+  const move = (node: FileNode, targetParentId: string | null) =>
+    client.file.move({ nodeIds: [node.id], targetParentId }).then(() => {
+      reload();
+    });
 
   const remove = (node: FileNode) => {
     if (!window.confirm(`确定将「${node.name}」移入回收站？`)) {
@@ -187,8 +202,24 @@ export function FilesBrowser(props: FilesBrowserProps) {
           onDownload={download}
           onRename={rename}
           onDelete={remove}
+          onFavorite={toggleFavorite}
+          onMove={setMoving}
+          onProperties={setInspecting}
         />
       </div>
+
+      <Show when={moving()}>
+        {(node) => (
+          <MoveDialog
+            sourceName={node().name}
+            onConfirm={(targetParentId) => move(node(), targetParentId)}
+            onClose={() => setMoving(null)}
+          />
+        )}
+      </Show>
+      <Show when={inspecting()}>
+        {(node) => <PropertiesPanel node={node()} onClose={() => setInspecting(null)} />}
+      </Show>
 
       <UploadDrawer />
       <DropZone onDrop={uploadCandidates} />
