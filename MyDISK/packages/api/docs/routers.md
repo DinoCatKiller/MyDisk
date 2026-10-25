@@ -144,15 +144,15 @@ const sort = z.object({
 | `purge`                               | protected | `{ nodeIds[] }`                                                                                         | `{ taskId }`                 | 彻底删除（队列物理删）                     |
 | `emptyTrash`                          | protected | —                                                                                                       | `{ taskId }`                 |                                            |
 | `stats`                               | protected | `{ nodeId }`                                                                                            | `FileNodeStats`              | 属性面板：大小/校验和/物理键/时间/分享状态 |
-| `favorite` / `unfavorite`             | protected | `{ nodeId }`                                                                                            | `{ ok }`                     |                                            |
-| `listFavorites`                       | protected | `pagination`                                                                                            | `Page<FileNode>`             |                                            |
+| `favorite` / `unfavorite`             | protected | `{ nodeId }`                                                                                            | `FileNode`                   | 收藏开关（P2 收尾已落，写 `is_favorite`）  |
+| `listFavorites`                       | protected | `pagination`                                                                                            | `Page<FileNode>`             | 收藏列表（P2 收尾已落，按修改时间倒序）    |
 | `search`                              | protected | `{ keyword, filters }`                                                                                  | `Page<FileNode>`             | 名称/类型/时间/大小/标签过滤               |
 | `tag.add` / `tag.remove` / `tag.list` | protected | `{ nodeId, tagId }`                                                                                     | —                            |                                            |
 | `batchDownload`                       | protected | `{ nodeIds[] }`                                                                                         | `{ taskId }`                 | 打包为 zip（队列）                         |
 
-> **P2 实现状态**（`packages/api/src/routers/file.ts`）：已落地 `list` / `tree` / `path` / `get` / `mkdir` / `rename` / `move` / `remove` / `listTrash` / `restore` / `purge` / `emptyTrash` / `stats`。
+> **P2 实现状态**（`packages/api/src/routers/file.ts`）：已落地 `list` / `tree` / `path` / `get` / `mkdir` / `rename` / `move` / `remove` / `listTrash` / `restore` / `purge` / `emptyTrash` / `stats` / `favorite` / `unfavorite` / `listFavorites`。
 >
-> - 未落地：`copy` / `favorite`(`unfavorite` / `listFavorites`) / `search` / `tag.*` / `batchDownload`（属 P3+；`list` 已支持 `keyword` 名称模糊过滤）。
+> - 未落地：`copy` / `search` / `tag.*` / `batchDownload`（属 P3+；`list` 已支持 `keyword` 名称模糊过滤）。
 > - `move` / `copy` 本期**仅同连接**：跨连接抛 `NOT_IMPLEMENTED`；`move` 会校验目标为同连接目录且禁止移入自身子孙。
 > - `purge` / `emptyTrash` 直接物理删除（不经队列）；秒传产生的共享 `storage_key` 仅在最后一个引用被清除时才删存储对象。
 

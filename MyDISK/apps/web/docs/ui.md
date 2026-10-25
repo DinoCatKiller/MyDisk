@@ -20,23 +20,23 @@
 
 ## 1. 页面（路由）
 
-| 路由                     | 内容                                                          | 现状                                                               |
-| ------------------------ | ------------------------------------------------------------- | ------------------------------------------------------------------ |
-| `/login`                 | 自研登录（邮箱+密码；忘记密码入口）                           | ✅ P1                                                              |
-| `/forgot-password`       | 输入邮箱 → 队列发重置邮件                                     | ⬜ P4                                                              |
-| `/reset-password?token=` | 设置新密码                                                    | ⬜ P4                                                              |
-| `/files/$`（`_splat`）   | 主界面：左侧连接+目录树，右侧文件区，顶部工具栏，底部上传抽屉 | ✅ P2（path 段为节点 id + `loader` 预取，见 `apps/web/README.md`） |
-| `/trash`                 | 回收站（还原 / 彻底删除 / 清空）                              | 🚧 骨架                                                            |
-| `/favorites`             | 收藏                                                          | 🚧 骨架                                                            |
-| `/shares`                | 分享管理                                                      | 🚧 骨架                                                            |
-| `/settings/storage`      | 连接列表、新增/编辑/测试/设为默认/同步                        | 🚧 骨架                                                            |
-| `/settings/smtp`         | SMTP 配置与测试                                               | ⬜ P4                                                              |
-| `/settings/api`          | OpenAPI 文档入口、spec 下载、外部集成说明                     | ⬜ P4                                                              |
-| `/settings/webdav`       | 开关 + 令牌管理                                               | ⬜ P4                                                              |
-| `/settings/security`     | 改密、绑定邮箱、会话管理                                      | 🚧 骨架                                                            |
-| `/admin/users`           | 管理员列表/新增/删除（founder 专属）                          | 🚧 骨架                                                            |
-| `/share/[token]`         | 公开分享页（密码门禁 → 目录/预览/下载）                       | ⬜ P3                                                              |
-| `/[...404]`              | 404                                                           | ✅ P1                                                              |
+| 路由                     | 内容                                                                | 现状                                                               |
+| ------------------------ | ------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `/login`                 | 自研登录（邮箱+密码；忘记密码入口）                                 | ✅ P1                                                              |
+| `/forgot-password`       | 输入邮箱 → 队列发重置邮件                                           | ⬜ P4                                                              |
+| `/reset-password?token=` | 设置新密码                                                          | ⬜ P4                                                              |
+| `/files/$`（`_splat`）   | 主界面：左侧连接+目录树，右侧文件区，顶部工具栏，底部上传抽屉       | ✅ P2（path 段为节点 id + `loader` 预取，见 `apps/web/README.md`） |
+| `/trash`                 | 回收站（还原 / 彻底删除 / 清空；`file.listTrash` loader）           | ✅ P2 收尾                                                         |
+| `/favorites`             | 收藏（列表 / 跳转所在目录 / 取消收藏；`file.listFavorites` loader） | ✅ P2 收尾                                                         |
+| `/shares`                | 分享管理                                                            | 🚧 骨架                                                            |
+| `/settings/storage`      | 连接列表、新增/编辑/测试/设为默认/同步                              | 🚧 骨架                                                            |
+| `/settings/smtp`         | SMTP 配置与测试                                                     | ⬜ P4                                                              |
+| `/settings/api`          | OpenAPI 文档入口、spec 下载、外部集成说明                           | ⬜ P4                                                              |
+| `/settings/webdav`       | 开关 + 令牌管理                                                     | ⬜ P4                                                              |
+| `/settings/security`     | 改密（含 founder 强制改密 `?force=true`）、资料、会话信息           | ✅ P2（绑定邮箱/会话管理 ⬜ P4）                                   |
+| `/admin/users`           | 管理员列表/新增（founder 专属）                                     | ✅ P2（删除 ⬜）                                                   |
+| `/share/[token]`         | 公开分享页（密码门禁 → 目录/预览/下载）                             | ⬜ P3                                                              |
+| `/[...404]`              | 404                                                                 | ✅ P1                                                              |
 
 ## 1.1 路由与数据装载（`D8`）
 
@@ -44,6 +44,10 @@
 - **会话经根路由 `beforeLoad` 注入**：`__root` 的 `beforeLoad` 服务端读请求 Cookie 解析会话，`return { session }` 注入**路由 context**。`getRouter()` 由 Start **按请求实例化**，context 跟随请求隔离，SSR 期间不会跨请求串号。未登录访问受保护页 → `throw redirect({ to: "/login", replace: true })`（307）。
 - **组件读数据**：会话用 `useSession()`（`src/lib/session.ts`，取 `__root` context 的 `session`）；页面数据用 `Route.useLoaderData()`；**不引入** `@tanstack/solid-query`。
 - **变更后刷新**：改密 / 改资料 / 账户增删等用 `router.invalidate()` 重跑 `beforeLoad` + `loader`；文件区筛选 / 排序等纯客户端交互仍由 `client.*` 本地重取覆盖 loader 数据。
+- **强制改密 gate**：`/files/` 与 `/files/$` 的 `beforeLoad` 读 context 里的 `session.mustChangePassword`，为真则 `throw redirect` 到 `/settings/security?force=true`——在**渲染前**弹回，避免「先渲染再跳转」的 URL/内容脱节。
+- **登录后跳转用 `reloadDocument: true`**：`invalidate()` + `navigate()` 并发会与 rc.9 的渲染竞态（URL 已切换、内容停在登录页），整页加载让根 `beforeLoad` 在 SSR 里重新解析会话，绕开竞态。
+
+> **框架版本组合与已知约束**（2026-10-25 对齐）：`solid-js/@solidjs/*@2.0.0-rc.18` + `@tanstack/solid-router|solid-start@2.0.0-rc.9` + `@solidjs/vite-plugin@3.0.0-next.51`。rc.8 + rc.15 的旧组合存在响应性漂移（点击目录只改 URL 不换内容等）。两条硬约束：① **路由级 `head()` 会使 SSR 抛错并被 Errored 吞成白屏**，页面标题暂由根路由 head 承担（`/login` 有注释）；② Solid 2 已弃 `classList` / `createResource`（用 `class` 对象/数组与 signal + `onSettled` 取数）。
 
 ## 2. 关键组件
 
@@ -54,7 +58,8 @@
 - `layout/`：`AppShell` / `Header` / `Sidebar` / `Protected`（登录门禁）。
 
 > 现状：`ui/` 已落 `button`/`input`/`card`/`alert`/`icons`；`layout/` 已落 `app-shell`/`protected`/`placeholder`。
-> P2 已落 `file/`（`toolbar`/`breadcrumb`/`file-list`/`file-row`/`drop-zone`）与 `upload/`（`upload-drawer`）。`preview/` 与 `FileGrid` 网格留待后续。
+> P2 已落 `file/`（`toolbar`/`breadcrumb`/`file-list`/`file-row`/`drop-zone`）与 `upload/`（`upload-drawer`）；P2 收尾补 `move-dialog`（移动：`file.tree` 懒加载目录树选目标）与 `properties-panel`（属性：`file.stats`）。
+> 行内操作现为：下载（文件）/ 收藏开关 / 重命名 / 移动 / 属性 / 删除。`preview/` 与网格视图的虚拟化留待后续。
 
 ## 3. 上传队列状态机
 

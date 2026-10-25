@@ -373,3 +373,21 @@ export function RotateIcon(props: IconProps) {
     </Svg>
   );
 }
+
+export function InfoIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <circle cx="12" cy="12" r="9" />
+      <path d="M12 8h.01" />
+      <path d="M12 12v4" />
+    </Svg>
+  );
+}
+
+export function FolderOpenIcon(props: IconProps) {
+  return (
+    <Svg {...props}>
+      <path d="m6 14 1.5-4.5A2 2 0 0 1 9.4 8H21l-1.9 5.7a2 2 0 0 1-1.9 1.3H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h3.9a2 2 0 0 1 1.7.9l.8 1.2a2 2 0 0 0 1.7.9H18a2 2 0 0 1 2 2v1" />
+    </Svg>
+  );
+}
