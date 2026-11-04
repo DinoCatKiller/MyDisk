@@ -122,8 +122,26 @@ describe("LocalStorageDriver（本地驱动回归）", () => {
     await multipart.abort("c1/none.bin", "nope");
   });
 
+  test("multipart：分片会话与目标键不一致时拒绝写入", async () => {
+    const multipart = driver.multipart!;
+    const uploadId = await multipart.init("c1/bound.bin");
+    await expect(
+      multipart.uploadPart("c1/other.bin", uploadId, 1, bufferOf("part")),
+    ).rejects.toThrow(/不匹配/);
+    await multipart.abort("c1/bound.bin", uploadId);
+  });
+
   test("路径穿越防护", () => {
     expect(() => driver["resolve"]("../../escape.bin")).toThrow(/PATH_TRAVERSAL|非法存储键/);
+  });
+
+  test("工厂：云连接缺凭证时立即报错", () => {
+    expect(() =>
+      createStorageDriver({ id: "c", type: "cos", bucket: "b", region: "r", config: {} }),
+    ).toThrow(/缺少必填配置/);
+    expect(() => createStorageDriver({ id: "s", type: "s3", bucket: "b", config: {} })).toThrow(
+      /缺少必填配置/,
+    );
   });
 
   test("工厂：local 返回本地驱动", () => {

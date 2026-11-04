@@ -149,15 +149,25 @@ export class S3Driver implements StorageDriver {
       if (batch.length === 0) {
         continue;
       }
-      await this.client.send(
+      const output = await this.client.send(
         new DeleteObjectsCommand({
           Bucket: this.bucket,
           Delete: {
             Objects: batch.map((key) => ({ Key: this.objectName(key) })),
-            Quiet: true,
           },
         }),
       );
+      const failures = output.Errors ?? [];
+      if (failures.length > 0) {
+        const detail = failures
+          .slice(0, 3)
+          .map((item) => `${item.Key ?? "?"}: ${item.Code ?? "UnknownError"}`)
+          .join("; ");
+        throw new StorageError(
+          "UNKNOWN",
+          `S3 批量删除失败 ${failures.length}/${batch.length} 个对象（${detail}）`,
+        );
+      }
     }
   }
 
@@ -172,23 +182,31 @@ export class S3Driver implements StorageDriver {
   }
 
   async list(prefix: string): Promise<StorageStat[]> {
-    const output = await this.client.send(
-      new ListObjectsV2Command({
-        Bucket: this.bucket,
-        Prefix: this.objectName(prefix),
-        Delimiter: "/",
-        MaxKeys: 1000,
-      }),
-    );
     const base = this.prefix ? `${this.prefix}/` : "";
-    return (output.Contents ?? []).map((object) => ({
-      key: (object.Key ?? "").startsWith(base)
-        ? (object.Key ?? "").slice(base.length)
-        : (object.Key ?? ""),
-      size: object.Size ?? 0,
-      lastModified: object.LastModified,
-      etag: object.ETag,
-    }));
+    const result: StorageStat[] = [];
+    let token: string | undefined;
+    do {
+      const output = await this.client.send(
+        new ListObjectsV2Command({
+          Bucket: this.bucket,
+          Prefix: this.objectName(prefix),
+          Delimiter: "/",
+          MaxKeys: 1000,
+          ContinuationToken: token,
+        }),
+      );
+      for (const object of output.Contents ?? []) {
+        const key = object.Key ?? "";
+        result.push({
+          key: key.startsWith(base) ? key.slice(base.length) : key,
+          size: object.Size ?? 0,
+          lastModified: object.LastModified,
+          etag: object.ETag,
+        });
+      }
+      token = output.IsTruncated ? output.NextContinuationToken : undefined;
+    } while (token);
+    return result;
   }
 
   async readAll(key: string): Promise<Uint8Array> {

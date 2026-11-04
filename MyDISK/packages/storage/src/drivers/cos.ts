@@ -182,7 +182,7 @@ export class CosDriver implements StorageDriver {
       if (batch.length === 0) {
         continue;
       }
-      await call((cb) =>
+      const output = await call<{ Error?: { Key?: string; Code?: string }[] }>((cb) =>
         this.client.deleteMultipleObject(
           {
             Bucket: this.bucket,
@@ -192,6 +192,17 @@ export class CosDriver implements StorageDriver {
           cb,
         ),
       );
+      const failures = output.Error ?? [];
+      if (failures.length > 0) {
+        const detail = failures
+          .slice(0, 3)
+          .map((item) => `${item.Key ?? "?"}: ${item.Code ?? "UnknownError"}`)
+          .join("; ");
+        throw new StorageError(
+          "UNKNOWN",
+          `COS 批量删除失败 ${failures.length}/${batch.length} 个对象（${detail}）`,
+        );
+      }
     }
   }
 
@@ -210,8 +221,15 @@ export class CosDriver implements StorageDriver {
   }
 
   async list(prefix: string): Promise<StorageStat[]> {
-    const output = await call<{ Contents?: { Key: string; Size: number; LastModified: string }[] }>(
-      (cb) =>
+    const base = this.prefix ? `${this.prefix}/` : "";
+    const result: StorageStat[] = [];
+    let marker: string | undefined;
+    do {
+      const output = await call<{
+        Contents?: { Key: string; Size: number; LastModified: string }[];
+        IsTruncated?: string | boolean;
+        NextMarker?: string;
+      }>((cb) =>
         this.client.getBucket(
           {
             Bucket: this.bucket,
@@ -219,16 +237,22 @@ export class CosDriver implements StorageDriver {
             Prefix: this.objectName(prefix),
             Delimiter: "/",
             MaxKeys: 1000,
+            Marker: marker,
           },
           cb as never,
         ),
-    );
-    const base = this.prefix ? `${this.prefix}/` : "";
-    return (output.Contents ?? []).map((object) => ({
-      key: object.Key.startsWith(base) ? object.Key.slice(base.length) : object.Key,
-      size: object.Size,
-      lastModified: object.LastModified ? new Date(object.LastModified) : undefined,
-    }));
+      );
+      for (const object of output.Contents ?? []) {
+        result.push({
+          key: object.Key.startsWith(base) ? object.Key.slice(base.length) : object.Key,
+          size: object.Size,
+          lastModified: object.LastModified ? new Date(object.LastModified) : undefined,
+        });
+      }
+      const truncated = output.IsTruncated === true || output.IsTruncated === "true";
+      marker = truncated ? output.NextMarker : undefined;
+    } while (marker);
+    return result;
   }
 
   async readAll(key: string): Promise<Uint8Array> {

@@ -137,7 +137,18 @@ export class OssDriver implements StorageDriver {
       if (batch.length === 0) {
         continue;
       }
-      await this.client.deleteMulti(batch, { quiet: true });
+      // quiet:false 才会返回逐项结果；否则失败项会被静默丢弃
+      const output = (await this.client.deleteMulti(batch)) as { deleted?: string[] } | undefined;
+      const deleted = new Set((output?.deleted ?? []).map((name) => decodeURIComponent(name)));
+      const unresolved = batch.filter((name) => !deleted.has(decodeURIComponent(name)));
+      if (unresolved.length > 0) {
+        throw new StorageError(
+          "UNKNOWN",
+          `OSS 批量删除失败 ${unresolved.length}/${batch.length} 个对象（${unresolved
+            .slice(0, 3)
+            .join("; ")}）`,
+        );
+      }
     }
   }
 
@@ -146,17 +157,35 @@ export class OssDriver implements StorageDriver {
   }
 
   async list(prefix: string): Promise<StorageStat[]> {
-    const output = await this.client.listV2(
-      { prefix: this.objectName(prefix), "max-keys": 1000, delimiter: "/" },
-      {},
-    );
     const base = this.prefix ? `${this.prefix}/` : "";
     type OssObject = { name: string; size: number; lastModified: string };
-    return ((output as { objects?: OssObject[] }).objects ?? []).map((object) => ({
-      key: object.name.startsWith(base) ? object.name.slice(base.length) : object.name,
-      size: object.size,
-      lastModified: object.lastModified ? new Date(object.lastModified) : undefined,
-    }));
+    const result: StorageStat[] = [];
+    let token: string | undefined;
+    do {
+      const options: Record<string, unknown> = {
+        prefix: this.objectName(prefix),
+        "max-keys": 1000,
+        delimiter: "/",
+      };
+      if (token) {
+        options["continuation-token"] = token;
+      }
+      const output = await this.client.listV2(options as never, {});
+      const page = output as {
+        objects?: OssObject[];
+        isTruncated?: boolean;
+        nextContinuationToken?: string;
+      };
+      for (const object of page.objects ?? []) {
+        result.push({
+          key: object.name.startsWith(base) ? object.name.slice(base.length) : object.name,
+          size: object.size,
+          lastModified: object.lastModified ? new Date(object.lastModified) : undefined,
+        });
+      }
+      token = page.isTruncated ? page.nextContinuationToken : undefined;
+    } while (token);
+    return result;
   }
 
   async readAll(key: string): Promise<Uint8Array> {

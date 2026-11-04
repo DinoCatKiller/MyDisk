@@ -361,7 +361,11 @@ async function purgeNodes(context: { db: Db; storageRoot: string }, ids: string[
     if (anchor && purgeable.length > 0) {
       const connection = await resolveConnection(context.db, anchor.connectionId);
       const driver = driverFor(connection, context.storageRoot);
-      await driver.deleteMany(purgeable).catch(() => undefined);
+      // 物理删除失败不能阻断记录清理，但必须留下可追溯的日志
+      await driver.deleteMany(purgeable).catch((error: unknown) => {
+        const message = error instanceof Error ? error.message : String(error);
+        console.error(`[file.purge] 物理删除失败（记录仍会删除）: ${message}`);
+      });
     }
   }
 

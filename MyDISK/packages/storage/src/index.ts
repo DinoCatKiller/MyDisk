@@ -13,6 +13,19 @@ export { CosDriver, LocalStorageDriver, OssDriver, S3Driver };
 
 export const DEFAULT_LOCAL_ROOT = "storage";
 
+/**
+ * 云连接必填项校验：缺字段时在创建驱动这一步就报明确错误，
+ * 而不是用空字符串构造驱动、把失败延后到第一次真实请求（届时只会看到云厂商的认证错误）。
+ */
+function assertConfig(type: string, fields: Record<string, unknown>): void {
+  const missing = Object.entries(fields)
+    .filter(([, value]) => value === undefined || value === null || value === "")
+    .map(([name]) => name);
+  if (missing.length > 0) {
+    throw new StorageError("UNKNOWN", `${type} 连接缺少必填配置: ${missing.join(", ")}`);
+  }
+}
+
 /** 云连接 config_enc 解密后的密钥字段（按类型，见 `A4` §4） */
 export type CloudSecret =
   | { secretId: string; secretKey: string }
@@ -42,6 +55,12 @@ export function createStorageDriver(
       });
     }
     case "cos":
+      assertConfig("COS", {
+        bucket: connection.bucket,
+        region: connection.region,
+        secretId: config.secretId,
+        secretKey: config.secretKey,
+      });
       return new CosDriver({
         bucket: connection.bucket ?? "",
         region: connection.region,
@@ -50,6 +69,12 @@ export function createStorageDriver(
         rootPrefix: connection.rootPrefix,
       });
     case "oss":
+      assertConfig("OSS", {
+        bucket: connection.bucket,
+        region: connection.region,
+        accessKeyId: config.accessKeyId,
+        accessKeySecret: config.accessKeySecret,
+      });
       return new OssDriver({
         bucket: connection.bucket ?? "",
         region: connection.region,
@@ -59,6 +84,11 @@ export function createStorageDriver(
         rootPrefix: connection.rootPrefix,
       });
     case "s3":
+      assertConfig("S3", {
+        bucket: connection.bucket,
+        accessKeyId: config.accessKeyId,
+        secretAccessKey: config.secretAccessKey,
+      });
       return new S3Driver({
         bucket: connection.bucket ?? "",
         region: connection.region,

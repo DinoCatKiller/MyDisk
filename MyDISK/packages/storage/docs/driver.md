@@ -29,7 +29,7 @@ interface StorageDriver {
   deleteMany(keys: string[]): Promise<void>;
   copy(from: string, to: string): Promise<void>;
   move(from: string, to: string): Promise<void>;
-  list(prefix: string, opts?): Promise<Stat[]>; // 非递归列举（本地需要）
+  list(prefix: string, opts?): Promise<Stat[]>; // 非递归列举；自动翻页，返回全部匹配对象
   // 分片（可选能力）
   multipart?: {
     init(key: string, mime: string): Promise<string>; // 返回 uploadId
@@ -47,6 +47,7 @@ interface StorageDriver {
 > 实现现状：`packages/storage/src/types.ts` 定义了等价接口（含 `supportsMultipart`、`readAll`）；`createStorageDriver()` 为工厂入口。
 > P3 实现：`drivers/s3.ts`（AWS SDK，自定义 endpoint 时 path-style，兼容 MinIO）、`drivers/cos.ts`（cos-nodejs-sdk-v5）、`drivers/oss.ts`（ali-oss）。云驱动把 body 缓冲为 Buffer（进入驱动的 body 只有小文件直传与 ≤8MB 分片，内存上界可控）；驱动测试见 `packages/storage/test/drivers.test.ts`。
 > 本地驱动的 `multipart.complete` 返回 `{ key, size, etag }`，其中 **`etag` 是完整 64 位 sha256**（顺序合并后计算），被 `upload.complete` 写入 `file_node.checksum` 并用于秒传判定——因此不能截断。
+> 契约细节：`deleteMany` 必须逐项确认，任一对象删除失败都要抛错（不再用云 SDK 的 quiet 模式静默吞掉）；`list` 必须自动翻页，不能停在单次 1000 条；本地 `multipart.uploadPart/complete` 会校验会话内记录的 `target.key`，与传入 key 不一致时抛 `UPLOAD_SESSION_INVALID`；云连接缺 `bucket`/`region`/密钥时 `createStorageDriver()` 立即抛「缺少必填配置」。
 
 **能力协商**：本地驱动自己实现「临时目录 + 合并」版 multipart；COS/OSS/S3 直接用原生 multipart。无 `signDownloadUrl` 能力时，一律走服务端 `/api/raw/*` 代理流（本地驱动即如此）。
 

@@ -189,14 +189,28 @@ export class LocalStorageDriver implements StorageDriver {
     return uploadId;
   }
 
+  /** 分片会话与目标键绑定校验：防止分片被合并到错误的存储键 */
+  private async assertUploadTarget(uploadId: string, key: string): Promise<string> {
+    const dir = this.tempDir(uploadId);
+    let expected: string;
+    try {
+      expected = await readFile(join(dir, "target.key"), "utf8");
+    } catch {
+      throw new StorageError("UPLOAD_SESSION_INVALID", `分片上传会话不存在: ${uploadId}`);
+    }
+    if (expected !== key) {
+      throw new StorageError("UPLOAD_SESSION_INVALID", "分片上传会话与目标存储键不匹配");
+    }
+    return dir;
+  }
+
   private async multipartUploadPart(
     key: string,
     uploadId: string,
     partNumber: number,
     body: StorageBody,
   ): Promise<{ etag?: string }> {
-    void key;
-    const dir = this.tempDir(uploadId);
+    const dir = await this.assertUploadTarget(uploadId, key);
     await mkdir(dir, { recursive: true });
     const partPath = join(dir, this.partName(partNumber));
     const hash = createHash("sha256");
@@ -211,7 +225,7 @@ export class LocalStorageDriver implements StorageDriver {
     uploadId: string,
     parts: MultipartPart[],
   ): Promise<PutResult> {
-    const dir = this.tempDir(uploadId);
+    const dir = await this.assertUploadTarget(uploadId, key);
     const ordered = [...parts].sort((a, b) => a.partNumber - b.partNumber);
     if (ordered.length === 0) {
       throw new StorageError("UPLOAD_SESSION_INVALID", "没有可合并的分片");
