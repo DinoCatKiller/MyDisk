@@ -83,8 +83,8 @@ bun install                 # 首次安装（Varlock 生成 env.ts）
 bun run dev                 # 启动单 app(:3000)
 bun run check               # Oxlint + Oxfmt
 bun run check-types         # 全仓 TS 类型检查
-bun run db:push             # 推送 schema 到数据库
-bun run cli install         # 建表 + 创建 founder 管理员 + 生成 cli.sh / cli.ps1
+bun run db:migrate          # 应用数据库迁移
+bun run cli install         # 迁移 + 创建 founder 管理员 + 生成 cli.sh / cli.ps1
 ```
 
 前置服务：PostgreSQL（`pstorage`）与 Redis 需自行拉起（不使用 Docker，见 `G1`）。

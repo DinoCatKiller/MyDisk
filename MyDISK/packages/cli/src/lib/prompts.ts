@@ -53,7 +53,7 @@ export type MainMenuAction =
   | "passwd"
   | "admin:add"
   | "admin:list"
-  | "db:push"
+  | "db:migrate"
   | "serve"
   | "exit";
 
@@ -61,11 +61,15 @@ export async function pickMainMenuAction(): Promise<MainMenuAction> {
   const answer = await select({
     message: "请选择要执行的操作",
     options: [
-      { value: "install", label: "安装 / 重新初始化", hint: "生成 cli.sh、建表、创建创始人管理员" },
+      {
+        value: "install",
+        label: "安装 / 重新初始化",
+        hint: "生成 cli.sh、执行迁移、创建创始人管理员",
+      },
       { value: "passwd", label: "修改管理员密码" },
       { value: "admin:add", label: "新增管理员" },
       { value: "admin:list", label: "查看管理员列表" },
-      { value: "db:push", label: "同步数据库表结构" },
+      { value: "db:migrate", label: "执行数据库迁移" },
       { value: "serve", label: "启动开发服务" },
       { value: "exit", label: "退出" },
     ],

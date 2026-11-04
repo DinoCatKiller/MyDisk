@@ -118,18 +118,18 @@ cli ─────▶ db + auth + storage（不依赖 web）
 由 `install` 命令在**项目根目录**生成 `cli.sh`（幂等，已存在则跳过）；Windows 侧同步生成 `cli.ps1`（同逻辑）。
 
 - 已安装 → 直接把参数透传给 yargs 模块；
-- 未安装 → 先 `bun install`，再自动进入 `install` 子命令（建表 + 设管理员）。
+- 未安装 → 先 `bun install`，再自动进入 `install` 子命令（执行迁移 + 设管理员）。
 
 ### 5.2 yargs 命令树
 
 ```bash
 ./cli.sh                      # 无参 → 交互式主菜单（@clack/prompts）
-./cli.sh install              # 安装：生成 cli.sh → bun install → 建表 → 设置管理员
+./cli.sh install              # 安装：生成 cli.sh → bun install → 执行迁移 → 设置管理员
 ./cli.sh passwd [--email x]   # 更新管理员密码
 ./cli.sh admin:add|list|remove
 ./cli.sh smtp:set|test        # ⬜ P4
 ./cli.sh storage:add|list|default|sync   # ⬜ P3
-./cli.sh db:push|studio|generate
+./cli.sh db:migrate|baseline|push|studio|generate
 ./cli.sh serve                # 启动单 app（turbo run dev）
 ./cli.sh worker               # ⬜ P3
 ./cli.sh openapi              # 导出 openapi.json
@@ -143,7 +143,7 @@ cli ─────▶ db + auth + storage（不依赖 web）
    ↓
 3. yargs 交互：
    ├─ 数据库连接自检（连不上明确提示并退出，不静默失败）
-   ├─ 建表（drizzle-kit push / migrate）
+   ├─ 执行迁移（drizzle-orm migrate；旧库先补基线）
    ├─ 管理员账户/密码/邮箱设置（默认值见 A2 §15；role=founder）
    ├─ 建立默认本地连接（type=local, root=<root>/storage, is_default=true）
    └─ 写 system_setting：installedAt / version / defaultConnectionId

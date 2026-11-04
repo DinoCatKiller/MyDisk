@@ -11,9 +11,11 @@ import {
   createFounder,
   ensureLocalConnection,
   findFounder,
+  hasLegacySchema,
   makeDb,
+  markBaselineApplied,
   markInstalled,
-  pushSchema,
+  runMigrations,
   writeInitialSettings,
 } from "../lib/bootstrap";
 import { generateCliScripts } from "../lib/cli-sh";
@@ -67,16 +69,22 @@ export async function runInstall(args: InstallArgs): Promise<void> {
     process.exit(1);
   }
 
-  // 第 4 步：同步表结构
-  logStep(4, "同步数据库表结构");
-  const pushed = pushSchema(env);
-  if (!pushed.ok) {
-    logWarn("drizzle-kit push 失败：");
-    console.log(pushed.output);
-    logWarn("可稍后手动执行：bun run db:push");
+  // 第 4 步：执行迁移
+  logStep(4, "执行数据库迁移");
+  if (await hasLegacySchema(env)) {
+    const adopted = await markBaselineApplied(env);
+    if (adopted.length > 0) {
+      logWarn(`检测到旧表结构（db:push 建的库），已补迁移基线：${adopted.join(", ")}`);
+    }
+  }
+  try {
+    await runMigrations(env);
+  } catch (error) {
+    logWarn(`数据库迁移失败：${(error as Error).message}`);
+    logWarn("可稍后手动执行：./cli.sh db:migrate");
     process.exit(1);
   }
-  logInfo("表结构已同步");
+  logInfo("数据库迁移已完成");
 
   // 第 5 步：创始人管理员
   const db = makeDb(env);
@@ -149,7 +157,7 @@ export async function runInstall(args: InstallArgs): Promise<void> {
 
 export const installCommand: CommandModule = {
   command: "install",
-  describe: "安装：生成 cli.sh、安装依赖、建表并创建创始人管理员",
+  describe: "安装：生成 cli.sh、安装依赖、执行迁移并创建创始人管理员",
   builder: (yargsInstance) =>
     yargsInstance
       .option("yes", {

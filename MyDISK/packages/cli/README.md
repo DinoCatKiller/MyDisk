@@ -14,15 +14,15 @@
 
 ## 核心内容
 
-| 项                                        | 说明                                                                                                                                     |
-| ----------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `src/index.ts`                            | yargs 入口（`scriptName: "pstorage"`）；无参时进入 `@clack/prompts` 主菜单                                                               |
-| `src/commands/install.ts`                 | 安装：生成 `cli.sh`/`cli.ps1` → 依赖检查 → 连库自检 → `drizzle-kit push` → 建 founder → 默认 `local` 连接 → 写 `system_setting` + 装标记 |
-| `src/commands/{passwd,admin,db,serve}.ts` | `passwd` / `admin:add\|list\|remove` / `db:push\|generate\|studio` / `serve`、`openapi`                                                  |
-| `src/lib/bootstrap.ts`                    | `makeDb`/`makeAuth`/`createFounder`/`ensureLocalConnection`/`writeInitialSettings`/`checkDatabase`/`pushSchema`                          |
-| `src/lib/cli-sh.ts`                       | 幂等生成项目根 `cli.sh`/`cli.ps1`（已存在则跳过）                                                                                        |
-| `src/lib/env.ts`                          | `loadCliEnv`：读 `apps/web/.env`（单 app，`D8`）且真实环境变量可覆盖；`maskDatabaseUrl` 打印脱敏                                         |
-| `src/lib/prompts.ts`                      | `DEFAULT_FOUNDER`、`askText`/`askPassword`/`askConfirm`、`pickMainMenuAction`                                                            |
+| 项                                        | 说明                                                                                                                                            |
+| ----------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `src/index.ts`                            | yargs 入口（`scriptName: "pstorage"`）；无参时进入 `@clack/prompts` 主菜单                                                                      |
+| `src/commands/install.ts`                 | 安装：生成 `cli.sh`/`cli.ps1` → 依赖检查 → 连库自检 → 执行迁移（旧库自动补基线）→ 建 founder → 默认 `local` 连接 → 写 `system_setting` + 装标记 |
+| `src/commands/{passwd,admin,db,serve}.ts` | `passwd` / `admin:add\|list\|remove` / `db:migrate\|baseline\|push\|generate\|studio` / `serve`、`openapi`                                      |
+| `src/lib/bootstrap.ts`                    | `makeDb`/`makeAuth`/`createFounder`/`ensureLocalConnection`/`writeInitialSettings`/`checkDatabase`/`runMigrations`/`markBaselineApplied`        |
+| `src/lib/cli-sh.ts`                       | 幂等生成项目根 `cli.sh`/`cli.ps1`（已存在则跳过）                                                                                               |
+| `src/lib/env.ts`                          | `loadCliEnv`：读 `apps/web/.env`（单 app，`D8`）且真实环境变量可覆盖；`maskDatabaseUrl` 打印脱敏                                                |
+| `src/lib/prompts.ts`                      | `DEFAULT_FOUNDER`、`askText`/`askPassword`/`askConfirm`、`pickMainMenuAction`                                                                   |
 
 ## 必须知道的三个设计决定
 

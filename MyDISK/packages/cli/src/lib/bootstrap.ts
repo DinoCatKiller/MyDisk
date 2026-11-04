@@ -1,10 +1,12 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
 import { createAuth, type Auth } from "@MyDISK/auth";
 import { type Database, createDb } from "@MyDISK/db";
 import { eq, sql } from "drizzle-orm";
+import { migrate } from "drizzle-orm/node-postgres/migrator";
 
 import { user } from "@MyDISK/db/schema/auth";
 import { storageConnection } from "@MyDISK/db/schema/storage";
@@ -35,17 +37,87 @@ export async function checkDatabase(env: CliEnv): Promise<void> {
   await db.execute(sql`select 1`);
 }
 
-/** 调用 drizzle-kit push 建表 */
+/** 迁移文件目录（packages/db 的 drizzle-kit out） */
+export function migrationsFolder(env: CliEnv): string {
+  return join(env.projectRoot, "packages/db/src/migrations");
+}
+
+/** 调用 drizzle-kit push（仅开发期直推表结构用） */
 export function pushSchema(env: CliEnv): { ok: boolean; output: string } {
   const cwd = join(env.projectRoot, "packages/db");
-  const command = process.platform === "win32" ? "bunx.cmd" : "bunx";
-  const result = spawnSync(command, ["drizzle-kit", "push", "--force"], {
+  const result = spawnSync("bunx", ["drizzle-kit", "push", "--force"], {
     cwd,
     env: { ...process.env, DATABASE_URL: env.DATABASE_URL },
     encoding: "utf8",
   });
   const output = `${result.stdout ?? ""}${result.stderr ?? ""}`.trim();
   return { ok: result.status === 0, output };
+}
+
+/** 进程内执行迁移（不依赖 bunx / drizzle-kit，跨平台一致） */
+export async function runMigrations(env: CliEnv): Promise<void> {
+  const db = makeDb(env);
+  await migrate(db, { migrationsFolder: migrationsFolder(env) });
+}
+
+/** 判断库里是否已有 db:push 建出的旧表结构 */
+export async function hasLegacySchema(env: CliEnv): Promise<boolean> {
+  const db = makeDb(env);
+  const result = await db.execute<{ exists: boolean }>(
+    sql`select to_regclass('public.file_node') is not null as exists`,
+  );
+  return result.rows[0]?.exists ?? false;
+}
+
+type JournalEntry = { idx: number; when: number; tag: string };
+
+function readJournal(folder: string): JournalEntry[] {
+  const journalPath = join(folder, "meta", "_journal.json");
+  if (!existsSync(journalPath)) {
+    throw new Error(`找不到迁移索引：${journalPath}`);
+  }
+  const journal = JSON.parse(readFileSync(journalPath, "utf8")) as { entries: JournalEntry[] };
+  return journal.entries;
+}
+
+/**
+ * 给「已由 db:push 建过表」的老库补迁移基线。
+ * 按 journal 逐条写入 hash（sha256(文件内容)）与 when，与 drizzle 迁移器口径一致；
+ * 补完之后 `db:migrate` 只会执行新增迁移。
+ */
+export async function markBaselineApplied(env: CliEnv): Promise<string[]> {
+  const db = makeDb(env);
+  const folder = migrationsFolder(env);
+  const entries = readJournal(folder);
+
+  await db.execute(sql`create schema if not exists "drizzle"`);
+  await db.execute(sql`
+    create table if not exists "drizzle"."__drizzle_migrations" (
+      id serial primary key,
+      hash text not null,
+      created_at bigint
+    )
+  `);
+
+  const applied = new Set(
+    (
+      await db.execute<{ hash: string }>(sql`select hash from "drizzle"."__drizzle_migrations"`)
+    ).rows.map((row) => row.hash),
+  );
+
+  const inserted: string[] = [];
+  for (const entry of entries) {
+    const content = readFileSync(join(folder, `${entry.tag}.sql`), "utf8");
+    const hash = createHash("sha256").update(content).digest("hex");
+    if (applied.has(hash)) {
+      continue;
+    }
+    await db.execute(
+      sql`insert into "drizzle"."__drizzle_migrations" ("hash", "created_at") values (${hash}, ${entry.when})`,
+    );
+    inserted.push(entry.tag);
+  }
+  return inserted;
 }
 
 export async function findFounder(db: Database) {

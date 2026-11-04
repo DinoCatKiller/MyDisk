@@ -8,11 +8,17 @@ import {
   runAdminAdd,
   runAdminList,
 } from "./commands/admin";
-import { dbGenerateCommand, dbPushCommand, dbStudioCommand } from "./commands/db";
+import {
+  dbBaselineCommand,
+  dbGenerateCommand,
+  dbMigrateCommand,
+  dbPushCommand,
+  dbStudioCommand,
+} from "./commands/db";
 import { installCommand, runInstall } from "./commands/install";
 import { passwdCommand, runPasswd } from "./commands/passwd";
 import { openapiCommand, runServe, serveCommand } from "./commands/serve";
-import { pushSchema } from "./lib/bootstrap";
+import { runMigrations } from "./lib/bootstrap";
 import { loadCliEnv } from "./lib/env";
 import { pickMainMenuAction } from "./lib/prompts";
 
@@ -36,9 +42,8 @@ async function showMainMenu(): Promise<void> {
     case "admin:list":
       await runAdminList();
       break;
-    case "db:push": {
-      const result = pushSchema(loadCliEnv());
-      console.log(result.output);
+    case "db:migrate": {
+      await runMigrations(loadCliEnv());
       break;
     }
     case "serve":
@@ -59,6 +64,8 @@ const cli = yargs(hideBin(process.argv))
   .command(adminAddCommand)
   .command(adminListCommand)
   .command(adminRemoveCommand)
+  .command(dbMigrateCommand)
+  .command(dbBaselineCommand)
   .command(dbPushCommand)
   .command(dbGenerateCommand)
   .command(dbStudioCommand)

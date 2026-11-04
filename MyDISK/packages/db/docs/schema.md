@@ -486,8 +486,8 @@ tag        ─N:M─▶ file_node (via file_tag)
 ## 15. 迁移与初始化
 
 1. `packages/db/src/schema/` 下按域拆分：`auth.ts`、`storage.ts`、`file.ts`、`share.ts`、`sync.ts`、`system.ts`；`index.ts` 统一导出。
-2. 迁移产物：`packages/db/src/migrations/`（当前为空，需首次 `db:generate`）。
-3. CLI `install` 流程调用 `drizzle-kit push`（开发）或 `migrate`（生产，由 `SYSTEM_ENV` 决定）。
+2. 迁移产物：`packages/db/src/migrations/`，基线为 `0000_premium_proteus.sql`（19 表 + 13 枚举）；结构变更一律 `db:generate` 新增文件，已发布文件只增不改。
+3. CLI `install` 流程与 `db:migrate` 调用 `drizzle-orm/migrator` 的 `migrate()` 应用迁移；`db:push` 建表的历史库先 `db:baseline` 补基线（写入 sha256 与 journal 时间戳），再走迁移。
 4. **初始数据**（install 时写入）：
    - `user`：founder 管理员（`pincman1988@gmail.com`，`role=founder`，`must_change_password=true`）
    - `storage_connection`：`name='local'`、`type='local'`、`is_default=true`、`root_prefix=''`
