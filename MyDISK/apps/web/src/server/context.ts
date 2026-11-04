@@ -35,6 +35,7 @@ export async function createContextFromHeaders(headers: Headers): Promise<ApiCon
     /** 过程内写入的响应头（Set-Cookie），由 app.ts 合并到最终响应 */
     responseHeaders: new Headers(),
     storageRoot: serverConfig.storageRoot,
+    encryptionKey: serverConfig.encryptionKey,
     signingSecret: env.BETTER_AUTH_SECRET,
     requestInfo: {
       ip: getClientIp(headers),

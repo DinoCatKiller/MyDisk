@@ -3,7 +3,15 @@ import { ORPCError } from "@orpc/server";
 
 import type { Database } from "@MyDISK/db";
 import { storageConnection, type StorageConnectionRow } from "@MyDISK/db/schema";
-import { createStorageDriver, decryptSecret, type StorageDriver } from "@MyDISK/storage";
+import {
+  createStorageDriver,
+  decryptSecret,
+  maskSecret,
+  type StorageDriver,
+  type StorageDriverType,
+} from "@MyDISK/storage";
+
+import { connectionSecretConfigSchema } from "../schemas/connection";
 
 /** 指定连接，未指定时取全局默认连接 */
 export async function resolveConnection(
@@ -34,6 +42,53 @@ export async function resolveConnection(
     });
   }
   return connection;
+}
+
+/**
+ * 展示用掩码配置：字符串值保留前 4 / 后 4 位；`root` 与 `forcePathStyle` 不是密钥，原样保留。
+ * 本地连接不落密钥配置，恒返回空对象（`A4` §4）。
+ */
+export function maskConnectionConfig(
+  type: StorageDriverType,
+  config: Record<string, unknown> | null | undefined,
+): Record<string, string> {
+  if (type === "local" || !config) {
+    return {};
+  }
+  const masked: Record<string, string> = {};
+  for (const [key, value] of Object.entries(config)) {
+    if (value === undefined || value === null) {
+      continue;
+    }
+    masked[key] =
+      key === "root" || key === "forcePathStyle" ? String(value) : maskSecret(String(value));
+  }
+  return masked;
+}
+
+/**
+ * 按连接类型校验密钥配置并返回「待加密的原文 + 待展示的掩码」。
+ * 云连接缺字段在此处就报错，避免把空凭证写进库、失败延后到第一次真实请求。
+ */
+export function normalizeConnectionConfig(
+  type: StorageDriverType,
+  raw: unknown,
+): { config: Record<string, unknown> | null; masked: Record<string, string> } {
+  if (type === "local") {
+    return { config: null, masked: {} };
+  }
+  const schema = connectionSecretConfigSchema[type];
+  const result = schema.safeParse(raw ?? {});
+  if (!result.success) {
+    const detail = result.error.issues
+      .map((issue) => `${issue.path.join(".") || "config"}: ${issue.message}`)
+      .join("；");
+    throw new ORPCError("BAD_REQUEST", {
+      message: `${type.toUpperCase()} 连接密钥配置不完整（${detail}）`,
+    });
+  }
+  const config = result.data as Record<string, unknown>;
+  return { config, masked: maskConnectionConfig(type, config) };
 }
 
 /**

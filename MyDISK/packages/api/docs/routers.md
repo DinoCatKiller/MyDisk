@@ -114,15 +114,20 @@ const sort = z.object({
 | `get`                                     | protected | `{ id }`                                                           | `StorageConnection`           |                                                       |
 | `create`                                  | founder   | `{ name, type, bucket?, region?, endpoint?, rootPrefix?, config }` | `StorageConnection`           | `type=local` 时若已存在则报 `STORAGE_LOCAL_DUPLICATE` |
 | `update`                                  | founder   | `{ id, ...patch }`                                                 | `StorageConnection`           |                                                       |
-| `delete`                                  | founder   | `{ id }`                                                           | `{ ok }`                      | 有文件时需确认，级联软删                              |
+| `delete`                                  | founder   | `{ id }`                                                           | `{ ok }`                      | 默认连接与有文件的连接禁止删除（需先清空）            |
 | `test`                                    | founder   | `{ id }` 或 `{ draft }`                                            | `{ ok, latencyMs, error? }`   | 连通性测试                                            |
-| `setDefault`                              | founder   | `{ id, sync?: "now" \| "later" \| "skip" }`                        | `{ switched: true, taskId? }` | `sync=now` 直接建同步任务                             |
+| `setDefault`                              | founder   | `{ id, sync?: "now" \| "later" \| "skip" }`                        | `{ switched: true }`          | `sync=now` 未实现，报 `NOT_IMPLEMENTED`（P3-6）       |
 | `sync`                                    | founder   | `{ fromId, toId, mode?, conflict? }`                               | `{ taskId }`                  | 手动同步                                              |
 | `syncStatus`                              | protected | `{ taskId }`                                                       | `SyncJob`                     |                                                       |
 | `syncPause` / `syncResume` / `syncCancel` | founder   | `{ taskId }`                                                       | `{ ok }`                      |                                                       |
-| `usage`                                   | protected | `{ id }`                                                           | `{ totalSize, fileCount }`    |                                                       |
+| `usage`                                   | protected | `{ id }`                                                           | `{ totalSize, fileCount }`    | 仅统计未删除文件（不含回收站）                        |
 
-> **P2 实现状态**（`packages/api/src/routers/connection.ts`）：仅落地 `list` / `get`，输出经 `publicConnectionSchema`（`schemas/connection.ts`）**显式白名单**脱敏——字段逐个列举，`config_enc` 密文不在其列，绝不携带密钥原文。其余 CRUD / `test` / `setDefault` / `sync*` / `usage` 属 P3。
+> **P3-3 实现状态**（`packages/api/src/routers/connection.ts`）：已落地 `list` / `get` / `create` / `update` / `delete` / `test` / `setDefault` / `usage`；`sync` / `syncStatus` / `syncPause` / `syncResume` / `syncCancel` 属 P3-6。
+>
+> - 输出经 `publicConnectionSchema`（`schemas/connection.ts`）**显式白名单**脱敏——`config_enc` 密文不在其列，绝不携带密钥原文；`configMasked` 形态如 `AKID****abcd`（`A4` §4）。
+> - `create` / `update` 的密钥按类型校验（cos `secretId/secretKey`、oss `accessKeyId/accessKeySecret`、s3 `accessKeyId/secretAccessKey`），缺字段直接 `BAD_REQUEST`；`type` 创建后不可修改。
+> - 全库第一个连接自动成为默认连接；删除默认连接、或名下仍有文件（含回收站）的连接一律 `CONFLICT`，不做级联删。
+> - `test` 支持 `{ id }` 与 `{ draft }`（新建前试连），探针为驱动 `list("")`，失败不抛错，返回 `{ ok:false, latencyMs, error }`。
 
 ---
 

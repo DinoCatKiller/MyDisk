@@ -29,7 +29,7 @@
 | `/trash`                 | 回收站（还原 / 彻底删除 / 清空；`file.listTrash` loader）           | ✅ P2 收尾                                                         |
 | `/favorites`             | 收藏（列表 / 跳转所在目录 / 取消收藏；`file.listFavorites` loader） | ✅ P2 收尾                                                         |
 | `/shares`                | 分享管理                                                            | 🚧 骨架                                                            |
-| `/settings/storage`      | 连接列表、新增/编辑/测试/设为默认/同步                              | 🚧 骨架                                                            |
+| `/settings/storage`      | 连接列表（状态/用量/脱敏密钥）、新建/编辑、测连通、设为默认、删除   | ✅ P3-3（跨连接同步 ⬜ P3-6）                                      |
 | `/settings/smtp`         | SMTP 配置与测试                                                     | ⬜ P4                                                              |
 | `/settings/api`          | OpenAPI 文档入口、spec 下载、外部集成说明                           | ⬜ P4                                                              |
 | `/settings/webdav`       | 开关 + 令牌管理                                                     | ⬜ P4                                                              |
