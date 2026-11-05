@@ -301,7 +301,8 @@ const publicInfo = publicProcedure
     await writeAccessLog(context.db, share.id, "view", null, context.requestInfo);
 
     return {
-      node: { name: node.name, type: node.type, size: node.size },
+      rootNodeId: node.id,
+      node: { name: node.name, type: node.type, size: node.size, mime: node.mime },
       needPassword: share.passwordHash !== null,
       canPreview: share.canPreview,
       canDownload: share.canDownload,
@@ -391,7 +392,7 @@ const publicDownloadUrl = publicProcedure
   .route({
     method: "POST",
     path: "/public/shares/{token}/download-url",
-    summary: "公开分享下载地址",
+    summary: "公开分享下载 / 预览地址",
     tags: ["share"],
   })
   .input(publicShareDownloadInput)
@@ -399,9 +400,6 @@ const publicDownloadUrl = publicProcedure
   .handler(async ({ input, context }) => {
     const { share, node } = await loadShare(context.db, input.token);
     requireShareAccess(share, input.shareToken, context.signingSecret);
-    if (!share.canDownload) {
-      throw new ORPCError("FORBIDDEN", { message: "该分享不允许下载" });
-    }
 
     const targetId = input.nodeId ?? node.id;
     const rows = await context.db
@@ -417,7 +415,19 @@ const publicDownloadUrl = publicProcedure
       throw new ORPCError("FORBIDDEN", { message: "文件不在该分享范围内" });
     }
 
-    const params = new URLSearchParams({ dl: "1" });
+    const inline = input.inline;
+    if (inline ? !share.canPreview : !share.canDownload) {
+      throw new ORPCError("FORBIDDEN", {
+        message: inline ? "该分享不允许预览" : "该分享不允许下载",
+      });
+    }
+
+    const params = new URLSearchParams();
+    if (inline) {
+      params.set("inline", "1");
+    } else {
+      params.set("dl", "1");
+    }
     if (input.shareToken) {
       params.set("access", input.shareToken);
     }

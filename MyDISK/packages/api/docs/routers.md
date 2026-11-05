@@ -229,13 +229,13 @@ const sort = z.object({
 > P3-4 已落地。密码通过后由 `public.unlock` 返回绑定 `shareId` 的 HMAC access token（TTL 2h，复用 `context.signingSecret`），
 > 不引入 Redis 状态；`shareProcedure` 中间件未采用。
 
-| 过程                 | 输入                                    | 输出                                                                                        | 说明                                     |
-| -------------------- | --------------------------------------- | ------------------------------------------------------------------------------------------- | ---------------------------------------- |
-| `public.info`        | `{ token }`                             | `{ node: { name, type, size }, needPassword, canPreview, canDownload, canList, expiresAt }` |                                          |
-| `public.unlock`      | `{ token, password }`                   | `{ shareToken: string }`                                                                    | 密码正确返回短时访问令牌（后续请求携带） |
-| `public.list`        | `{ token, shareToken?, parentNodeId? }` | `Page<PublicFileNode>`                                                                      | 文件夹分享列目录（白名单字段）           |
-| `public.downloadUrl` | `{ token, shareToken?, nodeId? }`       | `{ url }`                                                                                   | 指向 `/api/raw/share/:token/:nodeId`     |
-| `public.package`     | `{ token, shareToken?, nodeIds[] }`     | `{ taskId }`                                                                                | ⬜ 整目录打包（依赖队列，P3-6 之后）     |
+| 过程                 | 输入                                       | 输出                                                                                                          | 说明                                                             |
+| -------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `public.info`        | `{ token }`                                | `{ rootNodeId, node: { name, type, size, mime }, needPassword, canPreview, canDownload, canList, expiresAt }` | 根节点 id + mime 供前端直接构造预览请求                          |
+| `public.unlock`      | `{ token, password }`                      | `{ shareToken: string }`                                                                                      | 密码正确返回短时访问令牌（后续请求携带）                         |
+| `public.list`        | `{ token, shareToken?, parentNodeId? }`    | `Page<PublicFileNode>`                                                                                        | 文件夹分享列目录（白名单字段）                                   |
+| `public.downloadUrl` | `{ token, shareToken?, nodeId?, inline? }` | `{ url }`                                                                                                     | 指向 `/api/raw/share/:token/:nodeId`；`inline=true` 不占下载额度 |
+| `public.package`     | `{ token, shareToken?, nodeIds[] }`        | `{ taskId }`                                                                                                  | ⬜ 整目录打包（依赖队列，P3-6 之后）                             |
 
 ---
 
@@ -260,17 +260,18 @@ const sort = z.object({
 
 ## 10. `previewRouter`（预览）
 
-| 过程     | 权限      | 输入                          | 输出                                                | 说明                                 |
-| -------- | --------- | ----------------------------- | --------------------------------------------------- | ------------------------------------ |
-| `url`    | protected | `{ nodeId, inline? }`         | `{ url, ttl }`                                      | 签名直链（云存储）或 `/api/raw` 代理 |
-| `info`   | protected | `{ nodeId }`                  | `{ width?, height?, duration?, pages?, thumbKey? }` | 读取 `file_node.meta`                |
-| `text`   | protected | `{ nodeId, offset?, limit? }` | `{ content, truncated }`                            | 文本/代码/Markdown 取内容            |
-| `office` | protected | `{ nodeId }`                  | `{ html }`                                          | docx/xlsx 服务端转 HTML，结果缓存    |
+| 过程     | 权限      | 输入                             | 输出                                                | 说明                                              |
+| -------- | --------- | -------------------------------- | --------------------------------------------------- | ------------------------------------------------- |
+| `url`    | protected | `{ nodeId, inline?, download? }` | `{ url, ttl }`                                      | 生成 `/api/raw/{nodeId}?token=...` 签名直链       |
+| `info`   | protected | `{ nodeId }`                     | `{ nodeId, name, mime, size, kind, textTruncated }` | 前端渲染前预取：mime 判定 + 大小阈值              |
+| `text`   | protected | `{ nodeId, offset?, limit? }`    | `{ content, truncated }`                            | 文本/代码/Markdown 取内容（P3-5 前端用 Range 取） |
+| `office` | protected | `{ nodeId }`                     | `{ html }`                                          | docx/xlsx 服务端转 HTML，结果缓存（P4 待落地）    |
 
-缩略图：上传完成后入队 `thumbnail` 任务，写入 `meta.thumbKey`，列表读取签名 URL。
+**预览类型判定**（`packages/api/src/lib/preview.ts`）：`detectPreviewKind(mime, name)` 根据 mime 优先，扩展名兜底，输出 `image | video | audio | pdf | markdown | text | unknown`。文本/Markdown 前端只加载前 2MB（`TEXT_PREVIEW_MAX_BYTES`）。
 
-> **P2 实现状态**（`packages/api/src/routers/preview.ts`）：仅落地 `url`（输入 `{ nodeId, inline?, download? }` → `{ url, ttl: 900 }`）。
-> `info` / `text` / `office` 与缩略图队列属 P3。
+缩略图：上传完成后入队 `thumbnail` 任务，写入 `meta.thumbKey`，列表读取签名 URL（P4 待落地）。
+
+> **P3-5 实现状态**：`url` + `info` 已落地。前端 PreviewDialog 统一处理 image/video/audio/pdf/markdown/text + unknown 回退。`text` / `office` 与缩略图队列属后续阶段。
 
 ---
 

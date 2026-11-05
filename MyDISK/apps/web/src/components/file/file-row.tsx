@@ -23,6 +23,7 @@ export type FileRowProps = {
   node: FileNodeRow;
   view: FileView;
   onOpen: (node: FileNodeRow) => void;
+  onPreview: (node: FileNodeRow) => void;
   onDownload: (node: FileNodeRow) => void;
   onRename: (node: FileNodeRow) => void;
   onDelete: (node: FileNodeRow) => void;
@@ -50,7 +51,7 @@ export function FileRow(props: FileRowProps) {
     if (isFolder()) {
       props.onOpen(props.node);
     } else {
-      props.onDownload(props.node);
+      props.onPreview(props.node);
     }
   };
 

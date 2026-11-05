@@ -111,11 +111,13 @@ export const publicShareNodeInfoSchema = z.object({
   name: z.string(),
   type: z.enum(nodeTypeEnum.enumValues),
   size: z.number(),
+  mime: z.string().nullable(),
 });
 
 export const publicShareInfoInput = z.object({ token: shareTokenSchema });
 
 export const publicShareInfoSchema = z.object({
+  rootNodeId: z.uuid(),
   node: publicShareNodeInfoSchema,
   needPassword: z.boolean(),
   canPreview: z.boolean(),
@@ -145,6 +147,8 @@ export const publicShareDownloadInput = z.object({
   token: shareTokenSchema,
   shareToken: z.string().min(1).optional(),
   nodeId: z.uuid().optional(),
+  /** true = 内联预览（不占用下载额度；需 canPreview），false/默认 = 附件下载（需 canDownload） */
+  inline: z.boolean().default(false),
 });
 
 export const publicShareDownloadOutput = z.object({ url: z.string() });

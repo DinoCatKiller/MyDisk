@@ -7,6 +7,7 @@ import { DropZone } from "~/components/file/drop-zone";
 import { FileList } from "~/components/file/file-list";
 import type { FileView } from "~/components/file/file-row";
 import { MoveDialog } from "~/components/file/move-dialog";
+import { PreviewDialog } from "~/components/file/preview-dialog";
 import { PropertiesPanel } from "~/components/file/properties-panel";
 import { Toolbar, type SortField, type SortOrder } from "~/components/file/toolbar";
 import { Protected } from "~/components/layout/protected";
@@ -40,9 +41,10 @@ export function FilesBrowser(props: FilesBrowserProps) {
   const [sortOrder, setSortOrder] = createSignal<SortOrder>("asc");
   const [view, setView] = createSignal<FileView>("list");
   const [reloadTick, setReloadTick] = createSignal(0);
-  /** 移动对话框 / 属性面板的当前目标节点 */
+  /** 移动对话框 / 属性面板 / 预览弹层的当前目标节点 */
   const [moving, setMoving] = createSignal<FileNode | null>(null);
   const [inspecting, setInspecting] = createSignal<FileNode | null>(null);
+  const [previewing, setPreviewing] = createSignal<FileNode | null>(null);
 
   /** 当前目录节点 ID（由 loader 决定：裸 `/files` 为 null）。 */
   const parentId = () => props.data.parentId;
@@ -112,6 +114,13 @@ export function FilesBrowser(props: FilesBrowserProps) {
         anchor.remove();
       })
       .catch((downloadError: unknown) => setError(messageOf(downloadError, "下载失败")));
+  };
+
+  const preview = (node: FileNode) => {
+    if (node.type !== "file") {
+      return;
+    }
+    setPreviewing(node);
   };
 
   const createFolder = () => {
@@ -199,6 +208,7 @@ export function FilesBrowser(props: FilesBrowserProps) {
           view={view()}
           loading={loading()}
           onOpen={openFolder}
+          onPreview={preview}
           onDownload={download}
           onRename={rename}
           onDelete={remove}
@@ -219,6 +229,16 @@ export function FilesBrowser(props: FilesBrowserProps) {
       </Show>
       <Show when={inspecting()}>
         {(node) => <PropertiesPanel node={node()} onClose={() => setInspecting(null)} />}
+      </Show>
+      <Show when={previewing()}>
+        {(node) => (
+          <PreviewDialog
+            node={node()}
+            siblings={items()}
+            onClose={() => setPreviewing(null)}
+            onNavigate={(target) => setPreviewing(target as FileNode)}
+          />
+        )}
       </Show>
 
       <UploadDrawer />

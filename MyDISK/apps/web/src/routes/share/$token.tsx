@@ -3,6 +3,7 @@ import { For, Show, createSignal, onSettled } from "solid-js";
 
 import type { PublicFileNode, PublicShareInfo } from "@MyDISK/api/schemas/share";
 
+import { PreviewDialog } from "~/components/file/preview-dialog";
 import { Alert } from "~/components/ui/alert";
 import { Button } from "~/components/ui/button";
 import { Card, CardBody, CardHeader } from "~/components/ui/card";
@@ -37,6 +38,10 @@ function PublicSharePage() {
   const [listLoading, setListLoading] = createSignal(false);
   const [listError, setListError] = createSignal("");
   const [downloading, setDownloading] = createSignal<string | null>(null);
+
+  // 预览
+  const [previewing, setPreviewing] = createSignal<PublicFileNode | null>(null);
+  const [previewUrl, setPreviewUrl] = createSignal<string | null>(null);
 
   const token = () => params().token;
 
@@ -131,6 +136,26 @@ function PublicSharePage() {
       setError(errorMessage(downloadError));
     } finally {
       setDownloading(null);
+    }
+  };
+
+  const openPreview = async (node: PublicFileNode) => {
+    if (node.type !== "file") {
+      return;
+    }
+    setPreviewing(node);
+    setPreviewUrl(null);
+    try {
+      const result = await client.share.public.downloadUrl({
+        token: token(),
+        shareToken: shareToken() ?? undefined,
+        nodeId: node.id,
+        inline: true,
+      });
+      setPreviewUrl(result.url);
+    } catch (previewError) {
+      setPreviewing(null);
+      setError(errorMessage(previewError));
     }
   };
 
@@ -264,12 +289,37 @@ function PublicSharePage() {
                                   <Show
                                     when={item.type === "folder"}
                                     fallback={
-                                      <span style={{ flex: "1", "font-size": "13px" }}>
-                                        {item.name}
-                                        <span style={{ ...mutedStyle, "margin-left": "8px" }}>
-                                          {formatBytes(item.size)}
-                                        </span>
-                                      </span>
+                                      <Show
+                                        when={current().canPreview}
+                                        fallback={
+                                          <span style={{ flex: "1", "font-size": "13px" }}>
+                                            {item.name}
+                                            <span style={{ ...mutedStyle, "margin-left": "8px" }}>
+                                              {formatBytes(item.size)}
+                                            </span>
+                                          </span>
+                                        }
+                                      >
+                                        <button
+                                          type="button"
+                                          style={{
+                                            flex: "1",
+                                            "text-align": "left",
+                                            background: "transparent",
+                                            border: "0",
+                                            padding: "0",
+                                            color: "var(--md-text)",
+                                            cursor: "pointer",
+                                            "font-size": "13px",
+                                          }}
+                                          onClick={() => void openPreview(item)}
+                                        >
+                                          {item.name}
+                                          <span style={{ ...mutedStyle, "margin-left": "8px" }}>
+                                            {formatBytes(item.size)}
+                                          </span>
+                                        </button>
+                                      </Show>
                                     }
                                   >
                                     <button
@@ -310,18 +360,52 @@ function PublicSharePage() {
                       </div>
                     }
                   >
-                    <Button
-                      variant="primary"
-                      loading={downloading() === "__root__"}
-                      onClick={() => void download()}
-                    >
-                      <DownloadIcon size={15} /> 下载文件
-                    </Button>
+                    <div style={{ display: "flex", gap: "8px", "flex-wrap": "wrap" }}>
+                      <Show when={current().canPreview}>
+                        <Button
+                          variant="primary"
+                          onClick={() =>
+                            void openPreview({
+                              id: current().rootNodeId,
+                              name: current().node.name,
+                              type: current().node.type,
+                              size: current().node.size,
+                              mime: current().node.mime,
+                              updatedAt: new Date(),
+                            })
+                          }
+                        >
+                          预览
+                        </Button>
+                      </Show>
+                      <Show when={current().canDownload}>
+                        <Button
+                          variant="secondary"
+                          loading={downloading() === "__root__"}
+                          onClick={() => void download()}
+                        >
+                          <DownloadIcon size={15} /> 下载文件
+                        </Button>
+                      </Show>
+                    </div>
                   </Show>
                 </Show>
               </CardBody>
             </Card>
           )}
+        </Show>
+
+        <Show when={previewing()}>
+          <PreviewDialog
+            node={previewing()!}
+            url={previewUrl() ?? undefined}
+            siblings={items()}
+            onClose={() => {
+              setPreviewing(null);
+              setPreviewUrl(null);
+            }}
+            onNavigate={(target) => void openPreview(target as PublicFileNode)}
+          />
         </Show>
 
         <Show when={!loading() && error()}>

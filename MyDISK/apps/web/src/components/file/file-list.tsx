@@ -11,6 +11,7 @@ export type FileListProps = {
   view: FileView;
   loading: boolean;
   onOpen: (node: FileNodeRow) => void;
+  onPreview: (node: FileNodeRow) => void;
   onDownload: (node: FileNodeRow) => void;
   onRename: (node: FileNodeRow) => void;
   onDelete: (node: FileNodeRow) => void;
@@ -47,6 +48,7 @@ export function FileList(props: FileListProps) {
               node={node}
               view={props.view}
               onOpen={props.onOpen}
+              onPreview={props.onPreview}
               onDownload={props.onDownload}
               onRename={props.onRename}
               onDelete={props.onDelete}

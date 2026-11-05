@@ -94,7 +94,8 @@ shareRawRoute.on(["GET", "HEAD"], "/api/raw/share/:token/:nodeId", async (c) => 
 
   const isHead = c.req.method === "HEAD";
   const hasRange = c.req.header("range") !== undefined;
-  if (!isHead && !hasRange) {
+  // inline 预览（图片/视频/PDF iframe）不计下载次数；只有 attachment 下载才占用额度
+  if (!isHead && !hasRange && !inline) {
     // 原子占用一次下载额度；0 行 = 已被其他请求用尽
     const charged = await db
       .update(shareLink)
