@@ -109,6 +109,7 @@ function SharesPage() {
   // 编辑
   const [editingId, setEditingId] = createSignal<string | null>(null);
   const [editPassword, setEditPassword] = createSignal("");
+  const [editClearPassword, setEditClearPassword] = createSignal(false);
   const [editExpiresAt, setEditExpiresAt] = createSignal("");
   const [editMaxDownloads, setEditMaxDownloads] = createSignal("");
   const [editCanPreview, setEditCanPreview] = createSignal(true);
@@ -239,6 +240,7 @@ function SharesPage() {
   const startEdit = (row: PublicShare) => {
     setEditingId(row.id);
     setEditPassword("");
+    setEditClearPassword(false);
     setEditExpiresAt(toLocalInput(row.expiresAt));
     setEditMaxDownloads(row.maxDownloads === null ? "" : String(row.maxDownloads));
     setEditCanPreview(row.canPreview);
@@ -262,7 +264,7 @@ function SharesPage() {
     try {
       await client.share.update({
         id: row.id,
-        password: editPassword().trim() ? editPassword() : undefined,
+        password: editClearPassword() ? null : editPassword().trim() ? editPassword() : undefined,
         expiresAt: editExpiresAt() ? new Date(editExpiresAt()) : null,
         maxDownloads: limit,
         canPreview: editCanPreview(),
@@ -631,13 +633,28 @@ function SharesPage() {
                             "grid-template-columns": "1fr 1fr",
                           }}
                         >
-                          <TextField
-                            label="新密码（留空不改，输入后覆盖）"
-                            type="password"
-                            value={editPassword()}
-                            onInput={(event) => setEditPassword(event.currentTarget.value)}
-                            hint="勾选下方「清除密码」可改为无密码"
-                          />
+                          <div style={{ display: "grid", gap: "6px" }}>
+                            <TextField
+                              label="新密码（留空不改）"
+                              type="password"
+                              value={editPassword()}
+                              onInput={(event) => setEditPassword(event.currentTarget.value)}
+                              hint="填入新密码会覆盖原密码"
+                            />
+                            <label style={{ "font-size": "13px" }}>
+                              <input
+                                type="checkbox"
+                                checked={editClearPassword()}
+                                onChange={(event) => {
+                                  setEditClearPassword(event.currentTarget.checked);
+                                  if (event.currentTarget.checked) {
+                                    setEditPassword("");
+                                  }
+                                }}
+                              />{" "}
+                              清除密码（改为无密码访问）
+                            </label>
+                          </div>
                           <div style={{ display: "grid", gap: "6px" }}>
                             <label style={{ "font-size": "12px", color: "var(--md-text-muted)" }}>
                               有效期（留空 = 永久）
