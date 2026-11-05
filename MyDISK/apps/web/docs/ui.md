@@ -20,29 +20,32 @@
 
 ## 1. 页面（路由）
 
-| 路由                     | 内容                                                                | 现状                                                               |
-| ------------------------ | ------------------------------------------------------------------- | ------------------------------------------------------------------ |
-| `/login`                 | 自研登录（邮箱+密码；忘记密码入口）                                 | ✅ P1                                                              |
-| `/forgot-password`       | 输入邮箱 → 队列发重置邮件                                           | ⬜ P4                                                              |
-| `/reset-password?token=` | 设置新密码                                                          | ⬜ P4                                                              |
-| `/files/$`（`_splat`）   | 主界面：左侧连接+目录树，右侧文件区，顶部工具栏，底部上传抽屉       | ✅ P2（path 段为节点 id + `loader` 预取，见 `apps/web/README.md`） |
-| `/trash`                 | 回收站（还原 / 彻底删除 / 清空；`file.listTrash` loader）           | ✅ P2 收尾                                                         |
-| `/favorites`             | 收藏（列表 / 跳转所在目录 / 取消收藏；`file.listFavorites` loader） | ✅ P2 收尾                                                         |
-| `/shares`                | 分享管理                                                            | 🚧 骨架                                                            |
-| `/settings/storage`      | 连接列表（状态/用量/脱敏密钥）、新建/编辑、测连通、设为默认、删除   | ✅ P3-3（跨连接同步 ⬜ P3-6）                                      |
-| `/settings/smtp`         | SMTP 配置与测试                                                     | ⬜ P4                                                              |
-| `/settings/api`          | OpenAPI 文档入口、spec 下载、外部集成说明                           | ⬜ P4                                                              |
-| `/settings/webdav`       | 开关 + 令牌管理                                                     | ⬜ P4                                                              |
-| `/settings/security`     | 改密（含 founder 强制改密 `?force=true`）、资料、会话信息           | ✅ P2（绑定邮箱/会话管理 ⬜ P4）                                   |
-| `/admin/users`           | 管理员列表/新增（founder 专属）                                     | ✅ P2（删除 ⬜）                                                   |
-| `/share/[token]`         | 公开分享页（密码门禁 → 目录/预览/下载）                             | ⬜ P3                                                              |
-| `/[...404]`              | 404                                                                 | ✅ P1                                                              |
+| 路由                     | 内容                                                                                | 现状                                                               |
+| ------------------------ | ----------------------------------------------------------------------------------- | ------------------------------------------------------------------ |
+| `/login`                 | 自研登录（邮箱+密码；忘记密码入口）                                                 | ✅ P1                                                              |
+| `/forgot-password`       | 输入邮箱 → 队列发重置邮件                                                           | ⬜ P4                                                              |
+| `/reset-password?token=` | 设置新密码                                                                          | ⬜ P4                                                              |
+| `/files/$`（`_splat`）   | 主界面：左侧连接+目录树，右侧文件区，顶部工具栏，底部上传抽屉                       | ✅ P2（path 段为节点 id + `loader` 预取，见 `apps/web/README.md`） |
+| `/trash`                 | 回收站（还原 / 彻底删除 / 清空；`file.listTrash` loader）                           | ✅ P2 收尾                                                         |
+| `/favorites`             | 收藏（列表 / 跳转所在目录 / 取消收藏；`file.listFavorites` loader）                 | ✅ P2 收尾                                                         |
+| `/shares`                | 分享管理（列表 / 新建节点选择器 / 密码、有效期、下载上限 / 编辑 / 撤销 / 访问日志） | ✅ P3-4                                                            |
+| `/settings/storage`      | 连接列表（状态/用量/脱敏密钥）、新建/编辑、测连通、设为默认、删除                   | ✅ P3-3（跨连接同步 ⬜ P3-6）                                      |
+| `/settings/smtp`         | SMTP 配置与测试                                                                     | ⬜ P4                                                              |
+| `/settings/api`          | OpenAPI 文档入口、spec 下载、外部集成说明                                           | ⬜ P4                                                              |
+| `/settings/webdav`       | 开关 + 令牌管理                                                                     | ⬜ P4                                                              |
+| `/settings/security`     | 改密（含 founder 强制改密 `?force=true`）、资料、会话信息                           | ✅ P2（绑定邮箱/会话管理 ⬜ P4）                                   |
+| `/admin/users`           | 管理员列表/新增（founder 专属）                                                     | ✅ P2（删除 ⬜）                                                   |
+| `/share/[token]`         | 公开分享页（密码门禁 → 目录浏览 / 下载；**不经 `Protected`**）                      | ✅ P3-4（预览 ⬜ P3-5）                                            |
+| `/[...404]`              | 404                                                                                 | ✅ P1                                                              |
+
+> `/share/$token` 属公开路由：`__root.beforeLoad` 未登录时也放行，页面自带独立外壳，不渲染 `AppShell`。
 
 ## 1.1 路由与数据装载（`D8`）
 
 - **首屏取数走路由 `loader`**：`loader` 经 `createServerFn`（`src/server/fns.ts`）调用 oRPC —— SSR 时在**进程内直调**（`@orpc/server` 的 `call`，无 HTTP 往返），客户端导航时走 serverFn 的 HTTP 端点；因此首屏 HTML 即含真实数据。
 - **会话经根路由 `beforeLoad` 注入**：`__root` 的 `beforeLoad` 服务端读请求 Cookie 解析会话，`return { session }` 注入**路由 context**。`getRouter()` 由 Start **按请求实例化**，context 跟随请求隔离，SSR 期间不会跨请求串号。未登录访问受保护页 → `throw redirect({ to: "/login", replace: true })`（307）。
 - **组件读数据**：会话用 `useSession()`（`src/lib/session.ts`，取 `__root` context 的 `session`）；页面数据用 `Route.useLoaderData()`；**不引入** `@tanstack/solid-query`。
+- **分享页例外**：`/shares`（管理端）与 `/share/$token`（公开端）用 `client.*` + `onSettled` 客户端取数；公开页没有登录上下文，不能走 `createServerFn` 的会话注入链路。
 - **变更后刷新**：改密 / 改资料 / 账户增删等用 `router.invalidate()` 重跑 `beforeLoad` + `loader`；文件区筛选 / 排序等纯客户端交互仍由 `client.*` 本地重取覆盖 loader 数据。
 - **强制改密 gate**：`/files/` 与 `/files/$` 的 `beforeLoad` 读 context 里的 `session.mustChangePassword`，为真则 `throw redirect` 到 `/settings/security?force=true`——在**渲染前**弹回，避免「先渲染再跳转」的 URL/内容脱节。
 - **登录后跳转用 `reloadDocument: true`**：`invalidate()` + `navigate()` 并发会与 rc.9 的渲染竞态（URL 已切换、内容停在登录页），整页加载让根 `beforeLoad` 在 SSR 里重新解析会话，绕开竞态。

@@ -190,21 +190,22 @@ const sort = z.object({
 
 ## 7. 原生 HTTP 路由（非 oRPC，二进制面）
 
-| 路由                              | 方法        | 鉴权                                | 说明                                                                      |
-| --------------------------------- | ----------- | ----------------------------------- | ------------------------------------------------------------------------- |
-| `/api/upload/chunk`               | POST        | session cookie 或短时签名           | `?uploadId&index`，body 为原始分片流；支持并发，返回 `{ received, etag }` |
-| `/api/raw/:nodeId`                | GET/HEAD    | 签名 token（`?token=`）             | 支持 `Range` → 206；`dl=1` 触发下载文件名；预览用 `inline=1`              |
-| `/api/raw/share/:shareId/:nodeId` | GET         | 分享签名                            | 分享场景取流                                                              |
-| `/api/reference`                  | GET         | —                                   | oRPC 交互式文档（Scalar 主题）                                            |
-| `/dav/*`                          | WebDAV 方法 | Basic Auth（管理员或 webdav_token） | 见 `A6` §8                                                                |
+| 路由                            | 方法        | 鉴权                                | 说明                                                                      |
+| ------------------------------- | ----------- | ----------------------------------- | ------------------------------------------------------------------------- |
+| `/api/upload/chunk`             | POST        | session cookie 或短时签名           | `?uploadId&index`，body 为原始分片流；支持并发，返回 `{ received, etag }` |
+| `/api/raw/:nodeId`              | GET/HEAD    | 签名 token（`?token=`）             | 支持 `Range` → 206；`dl=1` 触发下载文件名；预览用 `inline=1`              |
+| `/api/raw/share/:token/:nodeId` | GET/HEAD    | 公开分享 token（+ `access`）        | 分享子树内取流；仅全量 GET 递增下载计数（`A6` §4）                        |
+| `/api/reference`                | GET         | —                                   | oRPC 交互式文档（Scalar 主题）                                            |
+| `/dav/*`                        | WebDAV 方法 | Basic Auth（管理员或 webdav_token） | 见 `A6` §8                                                                |
 
 > 签名 token（`packages/api/src/lib/raw-token.ts`）：`HMAC-SHA256` 签名的 `base64url(payload).base64url(sig)`，TTL 900 秒，
 > payload 含 `{ nodeId, userId, exp }`（结构由 `schemas/raw.ts` 的 `rawTokenPayloadSchema` 校验）；服务端每次校验签名、过期与 `nodeId` 归属（防止令牌被挪用）。
 > 前端经 `preview.url` 取签名地址；跨域 `<img>/<video>` 无法带 Cookie，故必须用签名 URL 而非会话 Cookie。
 >
-> **P2 实现状态**：`/api/upload/chunk`（`apps/web/src/server/routes/upload-chunk.ts`，session Cookie 鉴权 + 驱动 `multipart.uploadPart`）
+> **P2 / P3-4 实现状态**：`/api/upload/chunk`（`apps/web/src/server/routes/upload-chunk.ts`，session Cookie 鉴权 + 驱动 `multipart.uploadPart`）
 > 与 `/api/raw/:nodeId`（`apps/web/src/server/routes/raw.ts`，签名 token 或 Cookie 双鉴权，Range → 206/416）已落地；
-> `/api/raw/share/*` 与 `/dav/*` 属 P3/P4。
+> `/api/raw/share/:token/:nodeId`（`apps/web/src/server/routes/share-raw.ts`）已于 P3-4 落地：密码门禁、
+> 子树校验、原子下载计数与 `share_access_log`；`/dav/*` 属 P4。
 >
 > 二进制面的参数（path / query / `Range` 头）同样由 Zod 校验，schema 与 oRPC 侧在**同一处**（`packages/api/src/schemas/`）：
 > `raw.ts` 提供 `rawNodeIdSchema` / `rawQuerySchema` / `rawTokenPayloadSchema` / `byteRangeHeaderSchema(size)`，
@@ -223,15 +224,18 @@ const sort = z.object({
 | `revoke`    | protected | `{ id }`                                                                                | `{ ok }`               |                    |
 | `accessLog` | protected | `{ id } & pagination`                                                                   | `Page<ShareAccessLog>` |                    |
 
-### 公开过程（无登录，`shareProcedure`）
+### 公开过程（无登录，`publicProcedure`）
+
+> P3-4 已落地。密码通过后由 `public.unlock` 返回绑定 `shareId` 的 HMAC access token（TTL 2h，复用 `context.signingSecret`），
+> 不引入 Redis 状态；`shareProcedure` 中间件未采用。
 
 | 过程                 | 输入                                    | 输出                                                                                        | 说明                                     |
 | -------------------- | --------------------------------------- | ------------------------------------------------------------------------------------------- | ---------------------------------------- |
 | `public.info`        | `{ token }`                             | `{ node: { name, type, size }, needPassword, canPreview, canDownload, canList, expiresAt }` |                                          |
 | `public.unlock`      | `{ token, password }`                   | `{ shareToken: string }`                                                                    | 密码正确返回短时访问令牌（后续请求携带） |
-| `public.list`        | `{ token, shareToken?, parentNodeId? }` | `Page<FileNode>`                                                                            | 文件夹分享列目录                         |
-| `public.downloadUrl` | `{ token, shareToken?, nodeId? }`       | `{ url }`                                                                                   | 签名下载链接                             |
-| `public.package`     | `{ token, shareToken?, nodeIds[] }`     | `{ taskId }`                                                                                | 整目录打包下载（队列）                   |
+| `public.list`        | `{ token, shareToken?, parentNodeId? }` | `Page<PublicFileNode>`                                                                      | 文件夹分享列目录（白名单字段）           |
+| `public.downloadUrl` | `{ token, shareToken?, nodeId? }`       | `{ url }`                                                                                   | 指向 `/api/raw/share/:token/:nodeId`     |
+| `public.package`     | `{ token, shareToken?, nodeIds[] }`     | `{ taskId }`                                                                                | ⬜ 整目录打包（依赖队列，P3-6 之后）     |
 
 ---
 

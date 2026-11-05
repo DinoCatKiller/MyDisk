@@ -13,6 +13,7 @@ import { createContext } from "./context";
 import { env } from "./env.server";
 import { generateOpenApiDocument } from "./openapi";
 import { rawRoute } from "./routes/raw";
+import { shareRawRoute } from "./routes/share-raw";
 import { uploadChunkRoute } from "./routes/upload-chunk";
 
 /**
@@ -32,6 +33,7 @@ export function createApiApp(): Hono {
    * 注册在 oRPC 中间件之前，命中后直接返回。
    */
   app.route("/", uploadChunkRoute);
+  app.route("/", shareRawRoute);
   app.route("/", rawRoute);
 
   /**

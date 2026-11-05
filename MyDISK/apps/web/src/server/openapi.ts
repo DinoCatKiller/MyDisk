@@ -159,6 +159,90 @@ const binaryPaths = {
       security: [{ queryToken: [] }, { cookieAuth: [] }],
     },
   },
+  "/api/raw/share/{token}/{nodeId}": {
+    get: {
+      tags: ["raw"],
+      summary: "分享取流（公开）",
+      description:
+        "凭公开分享 token 取流；有密码的分享需附加 `access`（`public.unlock` 返回）。" +
+        "仅全量 GET 递增下载计数，Range / HEAD 不计数。",
+      parameters: [
+        {
+          name: "token",
+          in: "path",
+          required: true,
+          schema: { type: "string" },
+          description: "分享短码",
+        },
+        {
+          name: "nodeId",
+          in: "path",
+          required: true,
+          schema: { type: "string" },
+          description: "分享子树内的文件节点 id",
+        },
+        {
+          name: "access",
+          in: "query",
+          required: false,
+          schema: { type: "string" },
+          description: "密码解锁后的短时 access token",
+        },
+        {
+          name: "dl",
+          in: "query",
+          required: false,
+          schema: { type: "string", enum: ["1"] },
+          description: "置 `1` 时以附件形式下载（需要 canDownload）",
+        },
+        {
+          name: "inline",
+          in: "query",
+          required: false,
+          schema: { type: "string", enum: ["1"] },
+          description: "置 `1` 时内联展示（需要 canPreview）",
+        },
+        {
+          name: "range",
+          in: "header",
+          required: false,
+          schema: { type: "string" },
+          description: "标准 Range 头，如 `bytes=0-1023`",
+        },
+      ],
+      responses: {
+        200: {
+          description: "完整文件流",
+          content: { "application/octet-stream": { schema: { type: "string", format: "binary" } } },
+        },
+        206: {
+          description: "Range 分片响应",
+          content: { "application/octet-stream": { schema: { type: "string", format: "binary" } } },
+        },
+        400: {
+          description: "查询参数非法",
+          content: { "application/json": { schema: errorResponseSchema } },
+        },
+        401: {
+          description: "需要密码或 access token 失效",
+          content: { "application/json": { schema: errorResponseSchema } },
+        },
+        403: {
+          description: "分享已撤销/过期、节点不在分享范围、权限不足或下载次数用尽",
+          content: { "application/json": { schema: errorResponseSchema } },
+        },
+        404: {
+          description: "分享或文件不存在",
+          content: { "application/json": { schema: errorResponseSchema } },
+        },
+        416: {
+          description: "Range 不可满足",
+          content: { "application/json": { schema: errorResponseSchema } },
+        },
+      },
+      security: [],
+    },
+  },
 } as const;
 
 /** 三个安全方案（`A3` §11.4）：会话 Cookie / Bearer / 签名 URL query token */

@@ -24,8 +24,10 @@ export const Route = createRootRouteWithContext<RouterContext>()({
   beforeLoad: async ({ location }) => {
     const session = await fetchSession();
     const onLogin = location.pathname === "/login";
+    // 公开分享页（`A6` §4）：不登录也能访问，且不渲染管理端外壳
+    const onSharePage = location.pathname === "/share" || location.pathname.startsWith("/share/");
 
-    if (!session && !onLogin) {
+    if (!session && !onLogin && !onSharePage) {
       throw redirect({ to: "/login", replace: true });
     }
     if (session && onLogin) {
