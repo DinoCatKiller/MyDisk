@@ -3,6 +3,7 @@ import { Show } from "solid-js";
 import type { FileNodeRow } from "@MyDISK/db/schema";
 
 import {
+  ArchiveIcon,
   DownloadIcon,
   FileIcon,
   FileImageIcon,
@@ -12,6 +13,7 @@ import {
   PencilIcon,
   StarIcon,
   TrashIcon,
+  UnarchiveIcon,
 } from "~/components/ui/icons";
 import { formatBytes, formatDateTime } from "~/lib/format";
 
@@ -30,11 +32,23 @@ export type FileRowProps = {
   onFavorite: (node: FileNodeRow) => void;
   onMove: (node: FileNodeRow) => void;
   onProperties: (node: FileNodeRow) => void;
+  onCompress: (node: FileNodeRow) => void;
+  onExtract: (node: FileNodeRow) => void;
 };
 
 export function FileRow(props: FileRowProps) {
   const isFolder = () => props.node.type === "folder";
   const isImage = () => !isFolder() && (props.node.mime ?? "").startsWith("image/");
+  const isArchive = () => {
+    const lower = props.node.name.toLowerCase();
+    return (
+      !isFolder() &&
+      (lower.endsWith(".zip") ||
+        lower.endsWith(".tar") ||
+        lower.endsWith(".tar.gz") ||
+        lower.endsWith(".tgz"))
+    );
+  };
   const sizeLabel = () => (isFolder() ? "—" : formatBytes(props.node.size));
 
   const icon = () => {
@@ -68,17 +82,39 @@ export function FileRow(props: FileRowProps) {
       >
         <StarIcon size={15} />
       </button>
-      <Show when={!isFolder()}>
+      <button
+        type="button"
+        class={styles.action}
+        title={isFolder() ? "打包下载" : "下载"}
+        onClick={(event) => {
+          event.stopPropagation();
+          props.onDownload(props.node);
+        }}
+      >
+        <DownloadIcon size={15} />
+      </button>
+      <button
+        type="button"
+        class={styles.action}
+        title="压缩为 zip"
+        onClick={(event) => {
+          event.stopPropagation();
+          props.onCompress(props.node);
+        }}
+      >
+        <ArchiveIcon size={15} />
+      </button>
+      <Show when={isArchive()}>
         <button
           type="button"
           class={styles.action}
-          title="下载"
+          title="解压"
           onClick={(event) => {
             event.stopPropagation();
-            props.onDownload(props.node);
+            props.onExtract(props.node);
           }}
         >
-          <DownloadIcon size={15} />
+          <UnarchiveIcon size={15} />
         </button>
       </Show>
       <button

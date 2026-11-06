@@ -1,6 +1,6 @@
 import * as z from "zod";
 
-import { nodeTypeEnum, shareStatusEnum } from "@MyDISK/db/schema";
+import { nodeTypeEnum, shareStatusEnum, taskStatusEnum } from "@MyDISK/db/schema";
 
 import { pageSchema, paginationSchema } from "./common";
 
@@ -152,6 +152,28 @@ export const publicShareDownloadInput = z.object({
 });
 
 export const publicShareDownloadOutput = z.object({ url: z.string() });
+
+export const publicSharePackageInput = z.object({
+  token: shareTokenSchema,
+  shareToken: z.string().min(1).optional(),
+  nodeIds: z.array(z.uuid()).min(1),
+});
+
+export const publicSharePackageOutput = z.object({ taskId: z.uuid() });
+
+export const publicShareTaskInput = z.object({
+  token: shareTokenSchema,
+  taskId: z.uuid(),
+  shareToken: z.string().min(1).optional(),
+});
+
+export const publicShareTaskOutput = z.object({
+  id: z.uuid(),
+  status: z.enum(taskStatusEnum.enumValues),
+  progress: z.number().int(),
+  error: z.string().nullable(),
+  downloadUrl: z.string().nullable(),
+});
 
 /**
  * `/api/raw/share/:token/:nodeId` 的 query（二进制面，`A3` §7/§11.4）。

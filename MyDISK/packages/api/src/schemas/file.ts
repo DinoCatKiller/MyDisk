@@ -74,7 +74,19 @@ export const moveInput = z.object({
   targetParentId: z.uuid().nullish(),
 });
 
+export const copyInput = z.object({
+  nodeIds: z.array(z.uuid()).min(1),
+  targetParentId: z.uuid().nullish(),
+});
+
+export const searchFilesInput = paginationSchema.extend({
+  keyword: z.string().trim().min(1).max(255),
+  type: z.enum(["file", "folder"]).nullish(),
+  connectionId: z.uuid().nullish(),
+});
+
 export const movedSchema = z.object({ moved: z.number() });
+export const copiedSchema = z.object({ copied: z.number() });
 export const removedSchema = z.object({ removed: z.number() });
 export const restoredSchema = z.object({ restored: z.number() });
 export const purgedSchema = z.object({ purged: z.number() });

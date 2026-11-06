@@ -93,6 +93,7 @@
 | --- | --------------------------------------------------------- | ------------------------------------------------------------------------------ | ---------------------------------------- | ----- | ---- |
 | X1  | P2 上传前端方案调研（状态机绑定 · 刷新续传载体 · 状态图） | [`docs/research/p2-upload-frontend.md`](docs/research/p2-upload-frontend.md)   | P2 实现上传与文件管理（前端）前          | ~0.9k | ✅   |
 | GUI | 架构迁移计划（Start 单 app + Hono `/api` 子系统，已完成） | [`docs/plans/architecture-migration.md`](docs/plans/architecture-migration.md) | 想知道迁移改动面与验证门槛；执行史见 git | ~2.5k | ✅   |
+| PS6 | P3-6 压缩解压实施规格（队列/API/worker/前端决策）         | [`docs/plans/p3-6-archive/spec.md`](docs/plans/p3-6-archive/spec.md)           | 复查 P3-6 设计与边界                     | ~1.5k | ✅   |
 
 ## 3. 任务路由（按需读）
 

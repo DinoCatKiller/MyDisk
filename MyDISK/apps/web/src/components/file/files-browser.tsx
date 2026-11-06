@@ -1,7 +1,8 @@
 import { useNavigate } from "@tanstack/solid-router";
-import { Show, createEffect, createSignal, onSettled } from "solid-js";
+import { For, Show, createEffect, createSignal, onSettled } from "solid-js";
 
 import type { FileNode } from "@MyDISK/api/schemas/file";
+import type { TaskView } from "@MyDISK/api/schemas/task";
 
 import { DropZone } from "~/components/file/drop-zone";
 import { FileList } from "~/components/file/file-list";
@@ -11,6 +12,7 @@ import { PreviewDialog } from "~/components/file/preview-dialog";
 import { PropertiesPanel } from "~/components/file/properties-panel";
 import { Toolbar, type SortField, type SortOrder } from "~/components/file/toolbar";
 import { Protected } from "~/components/layout/protected";
+import { TaskProgress } from "~/components/task/task-progress";
 import { Alert } from "~/components/ui/alert";
 import { UploadDrawer } from "~/components/upload/upload-drawer";
 import type { FilesLoaderData } from "~/lib/files-loader";
@@ -45,6 +47,8 @@ export function FilesBrowser(props: FilesBrowserProps) {
   const [moving, setMoving] = createSignal<FileNode | null>(null);
   const [inspecting, setInspecting] = createSignal<FileNode | null>(null);
   const [previewing, setPreviewing] = createSignal<FileNode | null>(null);
+  /** 正在轮询进度的队列任务 id */
+  const [activeTasks, setActiveTasks] = createSignal<string[]>([]);
 
   /** 当前目录节点 ID（由 loader 决定：裸 `/files` 为 null）。 */
   const parentId = () => props.data.parentId;
@@ -101,7 +105,39 @@ export function FilesBrowser(props: FilesBrowserProps) {
     navigate({ to: "/files/$", params: { _splat: node.id } });
   };
 
+  /** 把入队结果挂到进度面板；失败直接提示 */
+  const track = (request: Promise<{ task: TaskView }>) => {
+    void request
+      .then((result) => {
+        setActiveTasks((ids) => [...ids, result.task.id]);
+      })
+      .catch((taskError: unknown) => setError(messageOf(taskError, "创建任务失败")));
+  };
+
+  const handleTaskDone = (task: TaskView) => {
+    setActiveTasks((ids) => ids.filter((id) => id !== task.id));
+    if (task.status === "failed") {
+      setError(task.error ?? "任务失败");
+      return;
+    }
+    if (task.status === "completed") {
+      if (task.downloadUrl) {
+        const anchor = document.createElement("a");
+        anchor.href = task.downloadUrl;
+        anchor.rel = "noreferrer";
+        document.body.append(anchor);
+        anchor.click();
+        anchor.remove();
+      }
+      reload();
+    }
+  };
+
   const download = (node: FileNode) => {
+    if (node.type === "folder") {
+      track(client.archive.package({ nodeIds: [node.id] }));
+      return;
+    }
     void client.preview
       .url({ nodeId: node.id, inline: true, download: true })
       .then((result) => {
@@ -114,6 +150,14 @@ export function FilesBrowser(props: FilesBrowserProps) {
         anchor.remove();
       })
       .catch((downloadError: unknown) => setError(messageOf(downloadError, "下载失败")));
+  };
+
+  const compress = (node: FileNode) => {
+    track(client.archive.compress({ nodeIds: [node.id], targetParentId: parentId() }));
+  };
+
+  const extract = (node: FileNode) => {
+    track(client.archive.extract({ nodeId: node.id, targetParentId: parentId() }));
   };
 
   const preview = (node: FileNode) => {
@@ -203,6 +247,14 @@ export function FilesBrowser(props: FilesBrowserProps) {
           <Alert variant="error">{shownError()}</Alert>
         </Show>
 
+        <Show when={activeTasks().length > 0}>
+          <div class={styles.tasks}>
+            <For each={activeTasks()}>
+              {(taskId) => <TaskProgress taskId={taskId} onDone={handleTaskDone} />}
+            </For>
+          </div>
+        </Show>
+
         <FileList
           items={items()}
           view={view()}
@@ -215,6 +267,8 @@ export function FilesBrowser(props: FilesBrowserProps) {
           onFavorite={toggleFavorite}
           onMove={setMoving}
           onProperties={setInspecting}
+          onCompress={compress}
+          onExtract={extract}
         />
       </div>
 

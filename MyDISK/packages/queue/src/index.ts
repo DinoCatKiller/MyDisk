@@ -66,6 +66,8 @@ export type ArchiveJobData = {
   type: "compress" | "extract" | "package_download";
   nodeIds: string[];
   targetParentId?: string | null;
+  /** 产物名（.zip）；缺省由 worker 按节点名推导 */
+  name?: string;
   userId: string;
 };
 

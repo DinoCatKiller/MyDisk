@@ -19,6 +19,7 @@
   "dependencies": {
     "@MyDISK/auth": "workspace:*",
     "@MyDISK/db": "workspace:*",
+    "@MyDISK/queue": "workspace:*",
     "@MyDISK/storage": "workspace:*",
     "@orpc/server": "catalog:",
     "drizzle-orm": "^0.45.2",

@@ -1,6 +1,7 @@
 import type { RouterClient } from "@orpc/server";
 
 import { authRouter } from "./routers/auth";
+import { archiveRouter, taskRouter } from "./routers/archive";
 import { connectionRouter } from "./routers/connection";
 import { fileRouter } from "./routers/file";
 import { previewRouter } from "./routers/preview";
@@ -16,6 +17,8 @@ export const appRouter = {
   upload: uploadRouter,
   preview: previewRouter,
   share: shareRouter,
+  archive: archiveRouter,
+  task: taskRouter,
 };
 
 export type AppRouter = typeof appRouter;

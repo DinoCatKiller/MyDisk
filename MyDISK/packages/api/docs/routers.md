@@ -1,13 +1,13 @@
 # A3 · oRPC 接口契约
 
-|        |                                                                                                     |
-| ------ | --------------------------------------------------------------------------------------------------- |
-| ID     | `A3`                                                                                                |
-| 类型   | 规格（契约）                                                                                        |
-| 状态   | 稳定（P1 落地 §2/§3；P2 落地 §4/§5/§6/§7/§10 的**子集**，各节「P2 实现状态」为准；其余为 P3+ 契约） |
-| 更新   | 2026-10-15                                                                                          |
-| 何时读 | 加 / 改接口、对齐前端调用、调整权限中间件时                                                         |
-| 规模   | ~4k token                                                                                           |
+|        |                                                                                                                                                                                     |
+| ------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| ID     | `A3`                                                                                                                                                                                |
+| 类型   | 规格（契约）                                                                                                                                                                        |
+| 状态   | 稳定（P1 落地 §2/§3；P2 落地 §4/§5/§6/§7/§10 的**子集**；P3-6 补 `file.copy`/`search`、`archive.*`/`task.*`、`share.public.package`/`task`、`/api/raw/task`；各节「实现状态」为准） |
+| 更新   | 2026-11-06                                                                                                                                                                          |
+| 何时读 | 加 / 改接口、对齐前端调用、调整权限中间件时                                                                                                                                         |
+| 规模   | ~4k token                                                                                                                                                                           |
 
 ## TL;DR
 
@@ -142,7 +142,7 @@ const sort = z.object({
 | `mkdir`                               | protected | `{ parentId?, name }`                                                                                   | `FileNode`                   |                                            |
 | `rename`                              | protected | `{ nodeId, name }`                                                                                      | `FileNode`                   | 只改展示名，不动物理键                     |
 | `move`                                | protected | `{ nodeIds[], targetParentId?, targetConnectionId? }`                                                   | `{ moved: number, taskId? }` | 跨连接走队列任务                           |
-| `copy`                                | protected | `{ nodeIds[], targetParentId?, targetConnectionId? }`                                                   | `{ taskId }`                 |                                            |
+| `copy`                                | protected | `{ nodeIds[], targetParentId? }`                                                                        | `{ copied: number }`         | 同连接递归复制（P3-6 已落）                |
 | `remove`                              | protected | `{ nodeIds[] }`                                                                                         | `{ removed: number }`        | 软删进回收站（递归）                       |
 | `listTrash`                           | protected | `pagination`                                                                                            | `Page<FileNode>`             |                                            |
 | `restore`                             | protected | `{ nodeIds[] }`                                                                                         | `{ restored: number }`       |                                            |
@@ -151,14 +151,15 @@ const sort = z.object({
 | `stats`                               | protected | `{ nodeId }`                                                                                            | `FileNodeStats`              | 属性面板：大小/校验和/物理键/时间/分享状态 |
 | `favorite` / `unfavorite`             | protected | `{ nodeId }`                                                                                            | `FileNode`                   | 收藏开关（P2 收尾已落，写 `is_favorite`）  |
 | `listFavorites`                       | protected | `pagination`                                                                                            | `Page<FileNode>`             | 收藏列表（P2 收尾已落，按修改时间倒序）    |
-| `search`                              | protected | `{ keyword, filters }`                                                                                  | `Page<FileNode>`             | 名称/类型/时间/大小/标签过滤               |
+| `search`                              | protected | `{ keyword, type?, connectionId? } & pagination`                                                        | `Page<FileNode>`             | 全局名称搜索（ILIKE，P3-6 已落）           |
 | `tag.add` / `tag.remove` / `tag.list` | protected | `{ nodeId, tagId }`                                                                                     | —                            |                                            |
 | `batchDownload`                       | protected | `{ nodeIds[] }`                                                                                         | `{ taskId }`                 | 打包为 zip（队列）                         |
 
-> **P2 实现状态**（`packages/api/src/routers/file.ts`）：已落地 `list` / `tree` / `path` / `get` / `mkdir` / `rename` / `move` / `remove` / `listTrash` / `restore` / `purge` / `emptyTrash` / `stats` / `favorite` / `unfavorite` / `listFavorites`。
+> **P2 / P3-6 实现状态**（`packages/api/src/routers/file.ts`）：已落地 `list` / `tree` / `path` / `get` / `mkdir` / `rename` / `move` / `copy` / `remove` / `listTrash` / `restore` / `purge` / `emptyTrash` / `stats` / `favorite` / `unfavorite` / `listFavorites` / `search`。
 >
-> - 未落地：`copy` / `search` / `tag.*` / `batchDownload`（属 P3+；`list` 已支持 `keyword` 名称模糊过滤）。
-> - `move` / `copy` 本期**仅同连接**：跨连接抛 `NOT_IMPLEMENTED`；`move` 会校验目标为同连接目录且禁止移入自身子孙。
+> - 未落地：`tag.*` / `batchDownload`（`batchDownload` 的职责由 `archive.package`（见 §9）承接）。
+> - `move` / `copy` 本期**仅同连接**：跨连接抛 `NOT_IMPLEMENTED`；`move` 会校验目标为同连接目录且禁止移入自身子孙；`copy` 递归重建目录结构、文件走 `driver.copy` 并生成新物理键，选中「父+子」时只复制最外层。
+> - `search` 为全局名称模糊搜索（`ILIKE`），可按 `type` / `connectionId` 过滤，按「目录优先、更新时间倒序」排序。
 > - `purge` / `emptyTrash` 直接物理删除（不经队列）；秒传产生的共享 `storage_key` 仅在最后一个引用被清除时才删存储对象。
 
 ---
@@ -195,17 +196,19 @@ const sort = z.object({
 | `/api/upload/chunk`             | POST        | session cookie 或短时签名           | `?uploadId&index`，body 为原始分片流；支持并发，返回 `{ received, etag }` |
 | `/api/raw/:nodeId`              | GET/HEAD    | 签名 token（`?token=`）             | 支持 `Range` → 206；`dl=1` 触发下载文件名；预览用 `inline=1`              |
 | `/api/raw/share/:token/:nodeId` | GET/HEAD    | 公开分享 token（+ `access`）        | 分享子树内取流；仅全量 GET 递增下载计数（`A6` §4）                        |
+| `/api/raw/task/:taskId`         | GET/HEAD    | 任务签名 token（`?token=`）         | 仅 `package_download` 已完成任务的产物；支持 `Range` → 206/416，强制附件  |
 | `/api/reference`                | GET         | —                                   | oRPC 交互式文档（Scalar 主题）                                            |
 | `/dav/*`                        | WebDAV 方法 | Basic Auth（管理员或 webdav_token） | 见 `A6` §8                                                                |
 
 > 签名 token（`packages/api/src/lib/raw-token.ts`）：`HMAC-SHA256` 签名的 `base64url(payload).base64url(sig)`，TTL 900 秒，
 > payload 含 `{ nodeId, userId, exp }`（结构由 `schemas/raw.ts` 的 `rawTokenPayloadSchema` 校验）；服务端每次校验签名、过期与 `nodeId` 归属（防止令牌被挪用）。
+> 任务产物令牌同构（`{ taskId, exp }`，`signTaskRawToken` / `verifyTaskRawToken` / `buildTaskRawUrl`，同样 TTL 900 秒）。
 > 前端经 `preview.url` 取签名地址；跨域 `<img>/<video>` 无法带 Cookie，故必须用签名 URL 而非会话 Cookie。
 >
-> **P2 / P3-4 实现状态**：`/api/upload/chunk`（`apps/web/src/server/routes/upload-chunk.ts`，session Cookie 鉴权 + 驱动 `multipart.uploadPart`）
-> 与 `/api/raw/:nodeId`（`apps/web/src/server/routes/raw.ts`，签名 token 或 Cookie 双鉴权，Range → 206/416）已落地；
-> `/api/raw/share/:token/:nodeId`（`apps/web/src/server/routes/share-raw.ts`）已于 P3-4 落地：密码门禁、
-> 子树校验、原子下载计数与 `share_access_log`；`/dav/*` 属 P4。
+> **P2 / P3-4 / P3-6 实现状态**：`/api/upload/chunk`（`apps/web/src/server/routes/upload-chunk.ts`，session Cookie 鉴权 + 驱动 `multipart.uploadPart`）、
+> `/api/raw/:nodeId`（`apps/web/src/server/routes/raw.ts`，签名 token 或 Cookie 双鉴权，Range → 206/416）
+> 与 `/api/raw/share/:token/:nodeId`（`apps/web/src/server/routes/share-raw.ts`，密码门禁 / 子树校验 / 原子下载计数与 `share_access_log`）已落地；
+> `/api/raw/task/:taskId`（`apps/web/src/server/routes/task-raw.ts`）于 P3-6 落地，仅服务 `package_download` 产物；`/dav/*` 属 P4。
 >
 > 二进制面的参数（path / query / `Range` 头）同样由 Zod 校验，schema 与 oRPC 侧在**同一处**（`packages/api/src/schemas/`）：
 > `raw.ts` 提供 `rawNodeIdSchema` / `rawQuerySchema` / `rawTokenPayloadSchema` / `byteRangeHeaderSchema(size)`，
@@ -229,32 +232,41 @@ const sort = z.object({
 > P3-4 已落地。密码通过后由 `public.unlock` 返回绑定 `shareId` 的 HMAC access token（TTL 2h，复用 `context.signingSecret`），
 > 不引入 Redis 状态；`shareProcedure` 中间件未采用。
 
-| 过程                 | 输入                                       | 输出                                                                                                          | 说明                                                             |
-| -------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
-| `public.info`        | `{ token }`                                | `{ rootNodeId, node: { name, type, size, mime }, needPassword, canPreview, canDownload, canList, expiresAt }` | 根节点 id + mime 供前端直接构造预览请求                          |
-| `public.unlock`      | `{ token, password }`                      | `{ shareToken: string }`                                                                                      | 密码正确返回短时访问令牌（后续请求携带）                         |
-| `public.list`        | `{ token, shareToken?, parentNodeId? }`    | `Page<PublicFileNode>`                                                                                        | 文件夹分享列目录（白名单字段）                                   |
-| `public.downloadUrl` | `{ token, shareToken?, nodeId?, inline? }` | `{ url }`                                                                                                     | 指向 `/api/raw/share/:token/:nodeId`；`inline=true` 不占下载额度 |
-| `public.package`     | `{ token, shareToken?, nodeIds[] }`        | `{ taskId }`                                                                                                  | ⬜ 整目录打包（依赖队列，P3-6 之后）                             |
+| 过程                 | 输入                                       | 输出                                                                                                          | 说明                                                                                         |
+| -------------------- | ------------------------------------------ | ------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `public.info`        | `{ token }`                                | `{ rootNodeId, node: { name, type, size, mime }, needPassword, canPreview, canDownload, canList, expiresAt }` | 根节点 id + mime 供前端直接构造预览请求                                                      |
+| `public.unlock`      | `{ token, password }`                      | `{ shareToken: string }`                                                                                      | 密码正确返回短时访问令牌（后续请求携带）                                                     |
+| `public.list`        | `{ token, shareToken?, parentNodeId? }`    | `Page<PublicFileNode>`                                                                                        | 文件夹分享列目录（白名单字段）                                                               |
+| `public.downloadUrl` | `{ token, shareToken?, nodeId?, inline? }` | `{ url }`                                                                                                     | 指向 `/api/raw/share/:token/:nodeId`；`inline=true` 不占下载额度                             |
+| `public.package`     | `{ token, shareToken?, nodeIds[] }`        | `{ taskId }`                                                                                                  | P3-6 已落：建 `package_download` 任务（要求 `canDownload`、节点在分享子树内，写 access log） |
+| `public.task`        | `{ token, shareToken?, taskId }`           | `{ id, status, progress, error, downloadUrl }`                                                                | 轮询打包任务；`completed` 时 `downloadUrl` 为 `/api/raw/task/:taskId` 签名地址               |
 
 ---
 
-## 9. `taskRouter`（异步任务）
+## 9. `taskRouter` / `archiveRouter`（异步任务与压缩）
 
-| 过程     | 权限      | 输入                              | 输出         | 说明                               |
-| -------- | --------- | --------------------------------- | ------------ | ---------------------------------- |
-| `list`   | protected | `{ status?, type? } & pagination` | `Page<Task>` |                                    |
-| `get`    | protected | `{ id }`                          | `Task`       | 含 `progress` / `result` / `error` |
-| `cancel` | protected | `{ id }`                          | `{ ok }`     |                                    |
-| `retry`  | protected | `{ id }`                          | `{ ok }`     |                                    |
-| `clear`  | protected | `{ ids[] }`                       | `{ ok }`     | 清理已完成记录                     |
+### 9.1 `taskRouter`（`task.*`）
 
-> 压缩 (`archive.compress`)、解压 (`archive.extract`) 也通过 `fileRouter` 建任务，统一在 `taskRouter` 查询：
+| 过程     | 权限      | 输入                              | 输出             | 说明                                                                          |
+| -------- | --------- | --------------------------------- | ---------------- | ----------------------------------------------------------------------------- |
+| `list`   | protected | `{ status?, type? } & pagination` | `Page<TaskView>` | 按创建时间倒序；founder 可看全部，其余只看自己的任务                          |
+| `get`    | protected | `{ id }`                          | `TaskView`       | 含 `progress` / `result` / `error`；`package_download` 完成时带 `downloadUrl` |
+| `cancel` | protected | `{ id }`                          | `{ ok }`         | 仅 `pending` / `running`；写 `cancelled` 并从队列移除待执行 job               |
 
-| 过程（挂 `archiveRouter`） | 输入                                   | 说明                                           |
-| -------------------------- | -------------------------------------- | ---------------------------------------------- |
-| `compress`                 | `{ nodeIds[], targetParentId?, name }` | 生成 zip，客户端小文件优先、大文件走服务端任务 |
-| `extract`                  | `{ nodeId, targetParentId? }`          | 解压到目录                                     |
+> **P3-6 实现状态**（`packages/api/src/routers/archive.ts`）：`list` / `get` / `cancel` 已落地；`retry` / `clear` 尚未实现。
+> `TaskView`（`schemas/task.ts`）在 `task` 行基础上补 `downloadUrl`：`package_download` + `completed` + `result.storageKey` 时由 `buildTaskRawUrl` 生成，其余为 `null`。
+
+### 9.2 `archiveRouter`（`archive.*`，独立挂载）
+
+| 过程       | 权限      | 输入                                    | 输出       | 说明                                                      |
+| ---------- | --------- | --------------------------------------- | ---------- | --------------------------------------------------------- |
+| `compress` | protected | `{ nodeIds[], targetParentId?, name? }` | `{ task }` | 生成 zip 落回文件树（扩展名固定 `zip`）                   |
+| `extract`  | protected | `{ nodeId, targetParentId? }`           | `{ task }` | 仅支持 `zip` / `tar` / `tar.gz` / `tgz`，解压到目录       |
+| `package`  | protected | `{ nodeIds[] }`                         | `{ task }` | 打包下载：产物写 `_tasks/<taskId>/<name>.zip`，不落文件树 |
+
+> 三个过程均插入 `task`（`pending`）后入队 `archive` 队列；入队失败会把任务标记 `failed` 并抛 `SERVICE_UNAVAILABLE`。
+> 产物名规则：显式 `name` 补 `.zip`；单节点 `${name}.zip`；多节点 `archive-yyyyMMdd-HHmm.zip`。
+> 分享侧的打包入口是 `share.public.package`（§8），复用同一 `package_download` 任务类型。
 
 ---
 
@@ -318,7 +330,7 @@ export const list = protectedProcedure
 
 ### 11.4 二进制接口（手写 spec 补充）
 
-`/api/upload/chunk`、`/api/raw/{nodeId}`、`/dav/*` 不经过 oRPC，无法自动推导 schema。在 `apps/web/src/server/openapi.ts` 中维护手写片段并与自动生成结果合并：
+`/api/upload/chunk`、`/api/raw/{nodeId}`、`/api/raw/task/{taskId}`、`/dav/*` 不经过 oRPC，无法自动推导 schema。在 `apps/web/src/server/openapi.ts` 中维护手写片段并与自动生成结果合并：
 
 ```ts
 const rawPaths = {

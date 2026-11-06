@@ -37,6 +37,7 @@ export async function createContextFromHeaders(headers: Headers): Promise<ApiCon
     storageRoot: serverConfig.storageRoot,
     encryptionKey: serverConfig.encryptionKey,
     signingSecret: env.BETTER_AUTH_SECRET,
+    redisUrl: serverConfig.redisUrl,
     requestInfo: {
       ip: getClientIp(headers),
       userAgent: headers.get("user-agent") ?? null,

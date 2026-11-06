@@ -19,20 +19,20 @@
 
 ## 1. 功能全景
 
-| 功能                   | 归属模块（现状）                                                 | 阶段  | 规格            |
-| ---------------------- | ---------------------------------------------------------------- | ----- | --------------- |
-| 存储抽象               | `packages/storage`                                               | ✅ P0 | `A4`            |
-| 认证与管理员           | `packages/auth` + `packages/api`                                 | ✅ P1 | `A3` §3 ｜ `D4` |
-| 系统设置 / 审计        | `packages/api`                                                   | ✅ P1 | `A3` §2         |
-| 上传（分片/续传/秒传） | `apps/web` + `packages/api`                                      | 🚧 P2 | 本文 §2         |
-| 文件管理 / 回收站      | `packages/api` + `web`                                           | 🚧 P2 | 本文 §3         |
-| 分享                   | `packages/api` + `web`                                           | ⬜ P3 | 本文 §4         |
-| 多连接与同步           | `packages/api` + `queue`                                         | ⬜ P3 | 本文 §5         |
-| 压缩 / 解压            | `queue` + `web`                                                  | ⬜ P3 | 本文 §6         |
-| 预览                   | `apps/web`                                                       | ⬜ P3 | 本文 §7         |
-| WebDAV                 | `apps/web`（+ ⬜ `packages/webdav`）                             | ⬜ P4 | 本文 §8         |
-| 邮件（SMTP）           | `packages/mail`（transporter + 模板已落地，配置落库 / 收口待做） | 🚧 P4 | 本文 §9         |
-| OpenAPI 文档           | `apps/web`                                                       | 🚧 P1 | `A3` §11        |
+| 功能                   | 归属模块（现状）                                                 | 阶段    | 规格            |
+| ---------------------- | ---------------------------------------------------------------- | ------- | --------------- |
+| 存储抽象               | `packages/storage`                                               | ✅ P0   | `A4`            |
+| 认证与管理员           | `packages/auth` + `packages/api`                                 | ✅ P1   | `A3` §3 ｜ `D4` |
+| 系统设置 / 审计        | `packages/api`                                                   | ✅ P1   | `A3` §2         |
+| 上传（分片/续传/秒传） | `apps/web` + `packages/api`                                      | 🚧 P2   | 本文 §2         |
+| 文件管理 / 回收站      | `packages/api` + `web`                                           | 🚧 P2   | 本文 §3         |
+| 分享                   | `packages/api` + `web`                                           | ⬜ P3   | 本文 §4         |
+| 多连接与同步           | `packages/api` + `queue`                                         | ⬜ P3   | 本文 §5         |
+| 压缩 / 解压            | `queue` + `apps/worker` + `web`                                  | ✅ P3-6 | 本文 §6         |
+| 预览                   | `apps/web`                                                       | ⬜ P3   | 本文 §7         |
+| WebDAV                 | `apps/web`（+ ⬜ `packages/webdav`）                             | ⬜ P4   | 本文 §8         |
+| 邮件（SMTP）           | `packages/mail`（transporter + 模板已落地，配置落库 / 收口待做） | 🚧 P4   | 本文 §9         |
+| OpenAPI 文档           | `apps/web`                                                       | 🚧 P1   | `A3` §11        |
 
 ## 2. 上传：分片 / 断点续传 / 暂停停止 / 刷新续传
 
@@ -112,9 +112,12 @@ pending ─▶ uploading ─▶ paused ─▶ uploading ─▶ completed
 
 ## 6. 压缩与解压
 
-- **压缩**：默认客户端 `zip.js` 流式打包（省服务端带宽），大目录（>200 文件或 >1GB）自动切到服务端队列任务。
-- **解压**：服务端队列任务（需遍历写盘），支持 zip / tar.gz，解压到指定目录，重名按 `keep_both`。
-- 二者统一抽象为 `task` 记录，前端用同一套进度 UI。
+- **统一走服务端队列**（`archive` 队列 + `apps/worker/src/processors/archive.ts`）：`archive.compress` / `archive.extract` / `archive.package` 先写 `task`（`pending`）再入队，前端轮询 `task.get` 展示进度并可取消。
+- **压缩**：`compress` 生成 zip 落回当前连接的文件树（唯一名，`keep_both` 语义）；文件名规则见 `A3` §9.2。
+- **解压**：支持 `zip` / `tar` / `tar.gz` / `tgz`，解到目标目录（逐级补目录、重名 `keep_both`）；限制 10000 条目 / 4GB；拒绝 `..` 与盘符等穿越路径。
+- **打包下载**：`package` 生成临时 zip（`_tasks/<taskId>/<name>.zip`，不落文件树），完成后经 `task.downloadUrl` → `/api/raw/task/:taskId` 短时签名下载；分享页走 `share.public.package` + `share.public.task`。
+- 归档实现为零依赖（`zip-writer` / `zip-reader` / `tar-reader`），zip64 明确报错；`zip.test.ts` 覆盖自产 zip 回环与系统 `tar.gz` 解析。
+- 客户端 `zip.js` 流式打包（省服务端带宽）留待后续，不在 P3-6 范围。
 
 ## 7. 预览
 

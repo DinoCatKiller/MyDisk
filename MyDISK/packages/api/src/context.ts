@@ -20,6 +20,8 @@ export type Context = {
   encryptionKey: string;
   /** 二进制面短时令牌签名密钥，由 server 注入 */
   signingSecret: string;
+  /** Redis 连接串，供入队（压缩/解压/打包）使用，由 server 注入 */
+  redisUrl: string;
   requestInfo: {
     ip: string | null;
     userAgent: string | null;

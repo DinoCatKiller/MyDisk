@@ -1,6 +1,11 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 
-import { rawTokenPayloadSchema, type RawTokenPayload } from "../schemas/raw";
+import {
+  rawTokenPayloadSchema,
+  taskRawTokenPayloadSchema,
+  type RawTokenPayload,
+  type TaskRawTokenPayload,
+} from "../schemas/raw";
 
 /**
  * 二进制面（/api/raw/*）的短时签名令牌。
@@ -60,4 +65,44 @@ export function buildRawUrl(
     params.set("inline", "1");
   }
   return `/api/raw/${nodeId}?${params.toString()}`;
+}
+
+/* ------------------------------------------------------------------ */
+/* 打包下载任务（临时 zip）                                             */
+/* ------------------------------------------------------------------ */
+
+export function signTaskRawToken(taskId: string, secret: string, ttlSeconds = 15 * 60): string {
+  const body = toBase64Url(
+    JSON.stringify({ taskId, exp: Math.floor(Date.now() / 1000) + ttlSeconds }),
+  );
+  return `${body}.${sign(body, secret)}`;
+}
+
+export function verifyTaskRawToken(token: string, secret: string): TaskRawTokenPayload | null {
+  const [body, signature] = token.split(".");
+  if (!body || !signature) {
+    return null;
+  }
+  const expected = sign(body, secret);
+  const given = Buffer.from(signature);
+  const want = Buffer.from(expected);
+  if (given.length !== want.length || !timingSafeEqual(given, want)) {
+    return null;
+  }
+  let parsed: TaskRawTokenPayload;
+  try {
+    parsed = taskRawTokenPayloadSchema.parse(
+      JSON.parse(Buffer.from(body, "base64url").toString("utf8")),
+    );
+  } catch {
+    return null;
+  }
+  if (parsed.exp * 1000 < Date.now()) {
+    return null;
+  }
+  return parsed;
+}
+
+export function buildTaskRawUrl(taskId: string, token: string): string {
+  return `/api/raw/task/${taskId}?${new URLSearchParams({ token, dl: "1" }).toString()}`;
 }

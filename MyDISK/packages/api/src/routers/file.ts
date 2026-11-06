@@ -4,12 +4,15 @@ import * as z from "zod";
 
 import type { Database } from "@MyDISK/db";
 import { fileNode, shareLink } from "@MyDISK/db/schema";
+import { buildStorageKey, type StorageDriver } from "@MyDISK/storage";
 
 import { protectedProcedure } from "../procedure";
 import { driverFor, resolveConnection } from "../lib/connections";
 import { collectSubtree, extOf, resolveUniqueName } from "../lib/files";
 import { paginationSchema, sortSchema } from "../schemas/common";
 import {
+  copiedSchema,
+  copyInput,
   fileNodeArraySchema,
   fileNodeListSchema,
   fileNodeSchema,
@@ -24,6 +27,7 @@ import {
   removedSchema,
   renameInput,
   restoredSchema,
+  searchFilesInput,
   treeInput,
 } from "../schemas/file";
 
@@ -55,6 +59,67 @@ async function requireNodes(db: Db, nodeIds: string[]) {
     throw new ORPCError("NOT_FOUND", { message: "文件不存在或已删除" });
   }
   return rows;
+}
+
+type FileNodeRow = typeof fileNode.$inferSelect;
+
+/**
+ * 递归复制节点到目标目录：目录重建结构，文件用存储驱动 copy 生成新物理键。
+ * 返回复制出的节点总数（含目录）。
+ */
+async function copyTree(
+  db: Db,
+  driver: StorageDriver,
+  connectionId: string,
+  source: FileNodeRow,
+  targetParentId: string | null,
+): Promise<number> {
+  const name = await resolveUniqueName(db, {
+    connectionId,
+    parentId: targetParentId,
+    name: source.name,
+  });
+
+  if (source.type === "folder") {
+    const [created] = await db
+      .insert(fileNode)
+      .values({
+        connectionId,
+        parentId: targetParentId,
+        ownerId: source.ownerId,
+        type: "folder",
+        name,
+        storageKey: "",
+        status: "active",
+      })
+      .returning({ id: fileNode.id });
+    const children = await db
+      .select()
+      .from(fileNode)
+      .where(and(eq(fileNode.parentId, source.id), isNull(fileNode.deletedAt)));
+    let copied = 1;
+    for (const child of children) {
+      copied += await copyTree(db, driver, connectionId, child, created?.id ?? null);
+    }
+    return copied;
+  }
+
+  const storageKey = buildStorageKey(connectionId, name);
+  await driver.copy(source.storageKey, storageKey);
+  await db.insert(fileNode).values({
+    connectionId,
+    parentId: targetParentId,
+    ownerId: source.ownerId,
+    type: "file",
+    name,
+    ext: extOf(name),
+    mime: source.mime,
+    size: source.size,
+    storageKey,
+    checksum: source.checksum,
+    status: "active",
+  });
+  return 1;
 }
 
 const list = protectedProcedure
@@ -493,6 +558,69 @@ const listFavorites = protectedProcedure
     return { items, total: totalRow?.value ?? 0, page: input.page, pageSize: input.pageSize };
   });
 
+const search = protectedProcedure
+  .route({ method: "GET", path: "/files/search", summary: "全局文件搜索", tags: ["file"] })
+  .input(searchFilesInput)
+  .output(fileNodeListSchema)
+  .handler(async ({ input, context }) => {
+    const where = and(
+      isNull(fileNode.deletedAt),
+      sql`${fileNode.name} ILIKE ${`%${input.keyword}%`}`,
+      input.type ? eq(fileNode.type, input.type) : undefined,
+      input.connectionId ? eq(fileNode.connectionId, input.connectionId) : undefined,
+    );
+    const [totalRow] = await context.db.select({ value: count() }).from(fileNode).where(where);
+    const items = await context.db
+      .select()
+      .from(fileNode)
+      .where(where)
+      .orderBy(desc(fileNode.type), desc(fileNode.updatedAt))
+      .limit(input.pageSize)
+      .offset((input.page - 1) * input.pageSize);
+    return { items, total: totalRow?.value ?? 0, page: input.page, pageSize: input.pageSize };
+  });
+
+const copy = protectedProcedure
+  .route({
+    method: "POST",
+    path: "/files/copy",
+    summary: "复制节点到目标目录（同连接递归）",
+    tags: ["file"],
+  })
+  .input(copyInput)
+  .output(copiedSchema)
+  .handler(async ({ input, context }) => {
+    const nodes = await requireNodes(context.db, input.nodeIds);
+    const connectionId = nodes[0]?.connectionId;
+    if (!connectionId || nodes.some((node) => node.connectionId !== connectionId)) {
+      throw new ORPCError("NOT_IMPLEMENTED", { message: "跨连接复制暂未支持" });
+    }
+
+    const targetParentId: string | null = input.targetParentId ?? null;
+    if (targetParentId) {
+      const [folder] = await requireNodes(context.db, [targetParentId]);
+      if (!folder || folder.type !== "folder" || folder.connectionId !== connectionId) {
+        throw new ORPCError("NOT_FOUND", { message: "目标目录不存在" });
+      }
+    }
+
+    // 选中节点里既有父又有子时，只复制最外层，避免重复
+    const subtree = await collectSubtree(context.db, input.nodeIds);
+    const subtreeIds = new Set(subtree.map((node) => node.id));
+    if (targetParentId && subtreeIds.has(targetParentId)) {
+      throw new ORPCError("BAD_REQUEST", { message: "不能复制到自身或其子目录" });
+    }
+    const roots = nodes.filter((node) => !node.parentId || !subtreeIds.has(node.parentId));
+
+    const connection = await resolveConnection(context.db, connectionId);
+    const driver = driverFor(connection, context.storageRoot);
+    let copied = 0;
+    for (const root of roots) {
+      copied += await copyTree(context.db, driver, connectionId, root, targetParentId);
+    }
+    return { copied };
+  });
+
 export const fileRouter = {
   list,
   tree,
@@ -501,6 +629,8 @@ export const fileRouter = {
   mkdir,
   rename,
   move,
+  copy,
+  search,
   remove,
   listTrash,
   restore,

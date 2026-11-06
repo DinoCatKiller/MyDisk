@@ -2,3 +2,8 @@
   display: grid;
   gap: var(--md-space-4);
 }
+
+.tasks {
+  display: grid;
+  gap: var(--md-space-2);
+}

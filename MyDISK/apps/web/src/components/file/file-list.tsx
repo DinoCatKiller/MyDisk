@@ -18,6 +18,8 @@ export type FileListProps = {
   onFavorite: (node: FileNodeRow) => void;
   onMove: (node: FileNodeRow) => void;
   onProperties: (node: FileNodeRow) => void;
+  onCompress: (node: FileNodeRow) => void;
+  onExtract: (node: FileNodeRow) => void;
 };
 
 export function FileList(props: FileListProps) {
@@ -55,6 +57,8 @@ export function FileList(props: FileListProps) {
               onFavorite={props.onFavorite}
               onMove={props.onMove}
               onProperties={props.onProperties}
+              onCompress={props.onCompress}
+              onExtract={props.onExtract}
             />
           )}
         </For>

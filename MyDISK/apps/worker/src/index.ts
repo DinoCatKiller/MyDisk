@@ -4,10 +4,12 @@ import {
   closeRedisConnection,
   createRedisConnection,
   QUEUE_NAMES,
+  type ArchiveJobData,
   type QueueName,
 } from "@MyDISK/queue";
 
 import { loadWorkerEnv } from "./env";
+import { runArchive } from "./processors/archive";
 import { runMail } from "./processors/mail";
 import { runMaintenance } from "./processors/maintenance";
 
@@ -28,7 +30,8 @@ const processors: Partial<Record<QueueName, Processor>> = {
   maintenance: async () => runMaintenance(env),
   mail: async (job) =>
     runMail(env, job.data as { to: string; subject: string; html: string; text?: string }),
-  // upload（合并/秒传）在 P2 走内联同步路径；archive / sync 的处理器随 P3 各功能落地
+  archive: async (job) => runArchive(env, job.data as ArchiveJobData),
+  // upload（合并/秒传）在 P2 走内联同步路径；sync 的处理器随 P3 剩余功能落地
 };
 
 const workers: Worker[] = [];

@@ -1,4 +1,4 @@
-import { and, asc, count, desc, eq, isNull } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, isNull } from "drizzle-orm";
 import { ORPCError } from "@orpc/server";
 
 import type { Database } from "@MyDISK/db";
@@ -6,10 +6,13 @@ import {
   fileNode,
   shareAccessLog,
   shareLink,
+  task,
   type FileNodeRow,
   type ShareLinkRow,
 } from "@MyDISK/db/schema";
 
+import { enqueueArchiveJob } from "../lib/archive-queue";
+import { buildTaskRawUrl, signTaskRawToken } from "../lib/raw-token";
 import {
   generateShareToken,
   hashSharePassword,
@@ -29,6 +32,10 @@ import {
   publicShareInfoSchema,
   publicShareListInput,
   publicShareListSchema,
+  publicSharePackageInput,
+  publicSharePackageOutput,
+  publicShareTaskInput,
+  publicShareTaskOutput,
   publicShareUnlockInput,
   publicShareUnlockOutput,
   publicShareSchema,
@@ -434,6 +441,110 @@ const publicDownloadUrl = publicProcedure
     return { url: `/api/raw/share/${share.token}/${target.id}?${params.toString()}` };
   });
 
+const publicPackage = publicProcedure
+  .route({
+    method: "POST",
+    path: "/public/shares/{token}/package",
+    summary: "公开分享整目录打包下载（队列任务）",
+    tags: ["share"],
+  })
+  .input(publicSharePackageInput)
+  .output(publicSharePackageOutput)
+  .handler(async ({ input, context }) => {
+    const { share, node } = await loadShare(context.db, input.token);
+    requireShareAccess(share, input.shareToken, context.signingSecret);
+    if (!share.canDownload) {
+      throw new ORPCError("FORBIDDEN", { message: "该分享不允许下载" });
+    }
+
+    const rows = await context.db
+      .select()
+      .from(fileNode)
+      .where(and(inArray(fileNode.id, input.nodeIds), isNull(fileNode.deletedAt)));
+    if (rows.length !== input.nodeIds.length) {
+      throw new ORPCError("NOT_FOUND", { message: "文件不存在或已删除" });
+    }
+    for (const row of rows) {
+      if (!(await isNodeWithinShare(context.db, row.id, node.id))) {
+        throw new ORPCError("FORBIDDEN", { message: "文件不在该分享范围内" });
+      }
+    }
+
+    const name = rows.length === 1 ? `${rows[0]!.name}.zip` : `${node.name}.zip`;
+    const [created] = await context.db
+      .insert(task)
+      .values({
+        type: "package_download",
+        status: "pending",
+        title: `打包下载 ${name}`,
+        payload: { nodeIds: rows.map((row) => row.id), targetParentId: null, name },
+        userId: share.createdBy,
+      })
+      .returning();
+    if (!created) {
+      throw new ORPCError("INTERNAL_SERVER_ERROR", { message: "创建任务失败" });
+    }
+
+    try {
+      await enqueueArchiveJob(context.redisUrl, {
+        taskId: created.id,
+        type: "package_download",
+        nodeIds: rows.map((row) => row.id),
+        targetParentId: null,
+        name,
+        userId: share.createdBy,
+      });
+    } catch {
+      await context.db
+        .update(task)
+        .set({
+          status: "failed",
+          error: "任务队列不可用（请确认 Redis 已启动）",
+          finishedAt: new Date(),
+        })
+        .where(eq(task.id, created.id));
+      throw new ORPCError("SERVICE_UNAVAILABLE", {
+        message: "任务队列不可用，请确认 Redis 已启动后再试",
+      });
+    }
+
+    await writeAccessLog(context.db, share.id, "download", null, context.requestInfo);
+    return { taskId: created.id };
+  });
+
+const publicTask = publicProcedure
+  .route({
+    method: "GET",
+    path: "/public/shares/{token}/tasks/{taskId}",
+    summary: "公开分享打包任务进度",
+    tags: ["share"],
+  })
+  .input(publicShareTaskInput)
+  .output(publicShareTaskOutput)
+  .handler(async ({ input, context }) => {
+    const { share } = await loadShare(context.db, input.token);
+    requireShareAccess(share, input.shareToken, context.signingSecret);
+
+    const rows = await context.db.select().from(task).where(eq(task.id, input.taskId)).limit(1);
+    const row = rows[0];
+    if (!row || row.type !== "package_download" || row.userId !== share.createdBy) {
+      throw new ORPCError("NOT_FOUND", { message: "任务不存在" });
+    }
+
+    const downloadUrl =
+      row.status === "completed" && typeof row.result?.storageKey === "string"
+        ? buildTaskRawUrl(row.id, signTaskRawToken(row.id, context.signingSecret))
+        : null;
+
+    return {
+      id: row.id,
+      status: row.status,
+      progress: row.progress,
+      error: row.error,
+      downloadUrl,
+    };
+  });
+
 export const shareRouter = {
   create,
   list,
@@ -445,5 +556,7 @@ export const shareRouter = {
     unlock: publicUnlock,
     list: publicList,
     downloadUrl: publicDownloadUrl,
+    package: publicPackage,
+    task: publicTask,
   },
 };

@@ -14,6 +14,7 @@ import { env } from "./env.server";
 import { generateOpenApiDocument } from "./openapi";
 import { rawRoute } from "./routes/raw";
 import { shareRawRoute } from "./routes/share-raw";
+import { taskRawRoute } from "./routes/task-raw";
 import { uploadChunkRoute } from "./routes/upload-chunk";
 
 /**
@@ -34,6 +35,7 @@ export function createApiApp(): Hono {
    */
   app.route("/", uploadChunkRoute);
   app.route("/", shareRawRoute);
+  app.route("/", taskRawRoute);
   app.route("/", rawRoute);
 
   /**

@@ -31,6 +31,15 @@ export const rawTokenPayloadSchema = z.object({
 
 export type RawTokenPayload = z.infer<typeof rawTokenPayloadSchema>;
 
+/** 打包下载任务（`package_download`）的短时令牌载荷 */
+export const taskRawTokenPayloadSchema = z.object({
+  taskId: z.uuid(),
+  /** 过期时间（秒级 unix 时间戳） */
+  exp: z.number().int().positive(),
+});
+
+export type TaskRawTokenPayload = z.infer<typeof taskRawTokenPayloadSchema>;
+
 /** 单段字节区间（含端点） */
 export const byteRangeSchema = z.object({
   start: z.number().int().nonnegative(),

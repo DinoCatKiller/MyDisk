@@ -7,7 +7,14 @@ import { PreviewDialog } from "~/components/file/preview-dialog";
 import { Alert } from "~/components/ui/alert";
 import { Button } from "~/components/ui/button";
 import { Card, CardBody, CardHeader } from "~/components/ui/card";
-import { DownloadIcon, FileIcon, FolderIcon, LockIcon, ShareIcon } from "~/components/ui/icons";
+import {
+  ArchiveIcon,
+  DownloadIcon,
+  FileIcon,
+  FolderIcon,
+  LockIcon,
+  ShareIcon,
+} from "~/components/ui/icons";
 import { TextField } from "~/components/ui/input";
 import { formatBytes } from "~/lib/format";
 import { client } from "~/utils/orpc";
@@ -38,6 +45,8 @@ function PublicSharePage() {
   const [listLoading, setListLoading] = createSignal(false);
   const [listError, setListError] = createSignal("");
   const [downloading, setDownloading] = createSignal<string | null>(null);
+  const [packaging, setPackaging] = createSignal<string | null>(null);
+  const [packageProgress, setPackageProgress] = createSignal<number | null>(null);
 
   // 预览
   const [previewing, setPreviewing] = createSignal<PublicFileNode | null>(null);
@@ -138,6 +147,45 @@ function PublicSharePage() {
       setDownloading(null);
     }
   };
+
+  const packageDownload = async (nodeIds: string[], key: string) => {
+    setPackaging(key);
+    setPackageProgress(null);
+    setError("");
+    try {
+      const { taskId } = await client.share.public.package({
+        token: token(),
+        shareToken: shareToken() ?? undefined,
+        nodeIds,
+      });
+      for (let attempt = 0; attempt < 300; attempt += 1) {
+        const view = await client.share.public.task({
+          token: token(),
+          taskId,
+          shareToken: shareToken() ?? undefined,
+        });
+        setPackageProgress(view.progress);
+        if (view.status === "completed") {
+          if (view.downloadUrl) {
+            window.location.assign(view.downloadUrl);
+          }
+          return;
+        }
+        if (view.status === "failed" || view.status === "cancelled") {
+          throw new Error(view.error ?? "打包失败");
+        }
+        await new Promise((resolve) => setTimeout(resolve, 1200));
+      }
+      throw new Error("打包任务超时");
+    } catch (packageError) {
+      setError(errorMessage(packageError));
+    } finally {
+      setPackaging(null);
+      setPackageProgress(null);
+    }
+  };
+
+  const currentFolderId = () => path().at(-1)?.id ?? info()?.rootNodeId ?? null;
 
   const openPreview = async (node: PublicFileNode) => {
     if (node.type !== "file") {
@@ -258,6 +306,26 @@ function PublicSharePage() {
                                     .map((item) => item.name)
                                     .join(" / ")}
                             </span>
+                            <Show when={current().canDownload && currentFolderId()}>
+                              <Button
+                                size="sm"
+                                variant="secondary"
+                                loading={packaging() === currentFolderId()}
+                                onClick={() => {
+                                  const folderId = currentFolderId();
+                                  if (folderId) {
+                                    void packageDownload([folderId], folderId);
+                                  }
+                                }}
+                              >
+                                <ArchiveIcon size={14} /> 打包下载
+                              </Button>
+                            </Show>
+                            <Show when={packaging()}>
+                              <span style={{ ...mutedStyle, "align-self": "center" }}>
+                                打包中… {packageProgress() ?? 0}%
+                              </span>
+                            </Show>
                           </div>
                           <Show when={listError()}>
                             <Alert variant="error">{listError()}</Alert>
@@ -338,6 +406,16 @@ function PublicSharePage() {
                                     >
                                       {item.name}
                                     </button>
+                                  </Show>
+                                  <Show when={item.type === "folder" && current().canDownload}>
+                                    <Button
+                                      size="sm"
+                                      variant="ghost"
+                                      loading={packaging() === item.id}
+                                      onClick={() => void packageDownload([item.id], item.id)}
+                                    >
+                                      <ArchiveIcon size={14} /> 打包
+                                    </Button>
                                   </Show>
                                   <Show when={item.type === "file" && current().canDownload}>
                                     <Button
